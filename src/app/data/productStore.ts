@@ -43,29 +43,49 @@ export function getMergedProducts(): Product[] {
 }
 
 /** Upsert a custom product (new or edited custom) */
-export function saveCustomProduct(product: Product): void {
-  const list = getCustomProducts();
-  const idx  = list.findIndex(p => p.id === product.id);
-  if (idx >= 0) list[idx] = product; else list.push(product);
-  save(KEYS.custom, list);
+export async function saveCustomProduct(product: Product): Promise<void> {
+  try {
+    const res = await fetch('/api/products', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(product)
+    });
+    if (!res.ok) throw new Error('Failed to save product');
+    window.dispatchEvent(new Event('mn_products_updated'));
+  } catch (error) {
+    console.error('Error saving custom product API:', error);
+  }
 }
 
 /** Override fields of a static product */
-export function saveProductOverride(id: string, data: Partial<Product>): void {
-  const overrides = getProductOverrides();
-  overrides[id] = { ...(overrides[id] ?? {}), ...data };
-  save(KEYS.overrides, overrides);
+export async function saveProductOverride(id: string, data: Partial<Product>): Promise<void> {
+  try {
+    // In our Postgres design, static products are already seeded.
+    // We treat overrides as a normal upsert since the product exists in DB.
+    const mergedData = { id, ...data }; 
+    const res = await fetch('/api/products', {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify(mergedData)
+    });
+    if (!res.ok) throw new Error('Failed to save override');
+    window.dispatchEvent(new Event('mn_products_updated'));
+  } catch (error) {
+    console.error('Error saving override API:', error);
+  }
 }
 
 /** Delete a product (soft-delete for statics, hard-delete for custom) */
-export function deleteProduct(id: string): void {
-  const isStatic = staticProducts.some(p => p.id === id);
-  if (isStatic) {
-    const deleted = getDeletedIds();
-    if (!deleted.includes(id)) save(KEYS.deleted, [...deleted, id]);
-  } else {
-    const list = getCustomProducts().filter(p => p.id !== id);
-    save(KEYS.custom, list);
+export async function deleteProduct(id: string): Promise<void> {
+  try {
+    // We can simply delete the product straight out of the database for both cases
+    const res = await fetch(`/api/products/${id}`, {
+      method: 'DELETE'
+    });
+    if (!res.ok) throw new Error('Failed to delete product');
+    window.dispatchEvent(new Event('mn_products_updated'));
+  } catch (error) {
+    console.error('Error deleting product API:', error);
   }
 }
 

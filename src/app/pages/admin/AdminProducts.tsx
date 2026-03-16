@@ -17,10 +17,14 @@ export default function AdminProducts() {
   const reload = () => setProducts(getMergedProducts());
   useEffect(() => { reload(); }, []);
 
-  const handleDelete = (id: string) => {
-    deleteProduct(id);
+  const [isDeleting, setIsDeleting] = useState(false);
+
+  const handleDelete = async (id: string) => {
+    setIsDeleting(true);
+    await deleteProduct(id);
     reload();
     setConfirmDelete(null);
+    setIsDeleting(false);
   };
 
   const filtered = products.filter(p => {
@@ -228,9 +232,9 @@ export default function AdminProducts() {
                   style={{ flex: 1, padding: '12px', borderRadius: '14px', background: '#2A2218', border: '1px solid #3A2E1E', color: '#9A8A74', fontWeight: 600, fontSize: '13px', fontFamily: 'Manrope, sans-serif', cursor: 'pointer' }}>
                   Annuler
                 </button>
-                <button onClick={() => handleDelete(confirmDelete)}
-                  style={{ flex: 1, padding: '12px', borderRadius: '14px', background: '#ef4444', border: 'none', color: '#fff', fontWeight: 700, fontSize: '13px', fontFamily: 'Manrope, sans-serif', cursor: 'pointer' }}>
-                  Supprimer
+                <button onClick={() => handleDelete(confirmDelete)} disabled={isDeleting}
+                  style={{ flex: 1, padding: '12px', borderRadius: '14px', background: isDeleting ? '#3A2E1E' : '#ef4444', border: 'none', color: isDeleting ? '#9A8A74' : '#fff', fontWeight: 700, fontSize: '13px', fontFamily: 'Manrope, sans-serif', cursor: isDeleting ? 'not-allowed' : 'pointer' }}>
+                  {isDeleting ? 'Suppression...' : 'Supprimer'}
                 </button>
               </div>
             </motion.div>

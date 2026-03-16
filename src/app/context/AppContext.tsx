@@ -33,7 +33,8 @@ export const DARK_COLORS = {
 interface AppContextType {
   // Products
   allProducts: Product[];
-  refreshProducts: () => void;
+  refreshProducts: () => Promise<void>;
+  isProductsLoading: boolean;
   // Cart
   cartItems: CartItem[];
   addToCart: (product: Product, size?: number) => void;
@@ -102,12 +103,24 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [darkMode, setDarkMode] = useState<boolean>(() => loadFromStorage('mn_dark', false));
   const [isGiftWrap, setIsGiftWrap] = useState(false);
   const [giftMessage, setGiftMessage] = useState('');
-  const [allProducts, setAllProducts] = useState<Product[]>(() => getMergedProducts());
+  const [allProducts, setAllProducts] = useState<Product[]>([]);
+  const [isProductsLoading, setIsProductsLoading] = useState(true);
 
-  const refreshProducts = useCallback(() => {
-    const products = getMergedProducts();
-    console.log('[AppContext] refreshProducts called', products.length, 'products loaded');
-    setAllProducts(products);
+  const refreshProducts = useCallback(async () => {
+    try {
+      const res = await fetch('/api/products');
+      if (!res.ok) throw new Error('Failed to fetch POSTGRES products');
+      const data = await res.json();
+      console.log('[AppContext] refreshProducts fetched', data.length, 'products from database');
+      setAllProducts(data);
+    } catch (e) {
+      console.error('[AppContext] Error fetching from DB:', e);
+      // Fallback local if DB not running / no connection
+      const local = getMergedProducts();
+      setAllProducts(local);
+    } finally {
+      setIsProductsLoading(false);
+    }
   }, []);
 
   useEffect(() => {
@@ -237,11 +250,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       priceAlerts, togglePriceAlert, hasPriceAlert,
       recentlyViewed, addToRecentlyViewed,
       isLoggedIn,
-      login: () => { setIsLoggedIn(true); if (loyaltyPoints === 0) setLoyaltyPoints(2400); },
+      login: () => setIsLoggedIn(true),
       logout: () => setIsLoggedIn(false),
       loyaltyPoints, addPoints,
       lastOrderId, setLastOrderId,
       darkMode, toggleDarkMode, colors,
+      isProductsLoading,
     }}>
       {children}
     </AppContext.Provider>
@@ -260,4 +274,8 @@ export function useColors() {
 
 export function useProducts() {
   return useApp().allProducts;
+}
+
+export function useProductsLoading() {
+  return useApp().isProductsLoading;
 }

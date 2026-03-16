@@ -238,6 +238,7 @@ export default function AdminProductForm() {
 
   const [form, setForm] = useState<FormData>(EMPTY_FORM);
   const [saved, setSaved] = useState(false);
+  const [isSaving, setIsSaving] = useState(false);
   const [errors, setErrors] = useState<Partial<Record<keyof FormData, string>>>({});
 
   const set = <K extends keyof FormData>(key: K, value: FormData[K]) =>
@@ -260,21 +261,28 @@ export default function AdminProductForm() {
     return Object.keys(e).length === 0;
   };
 
-  const handleSave = () => {
+  const handleSave = async () => {
     if (!validate()) return;
+    setIsSaving(true);
     const productId = isNew ? generateProductId() : id!;
     const product   = formToProduct(form, productId);
 
-    if (isNew || !isStaticProduct(productId)) {
-      saveCustomProduct(product);
-    } else {
-      // For static products we save a full override (all fields)
-      const { id: _id, ...rest } = product;
-      saveProductOverride(productId, rest);
-    }
+    try {
+      if (isNew || !isStaticProduct(productId)) {
+        await saveCustomProduct(product);
+      } else {
+        // For static products we save a full override (all fields)
+        const { id: _id, ...rest } = product;
+        await saveProductOverride(productId, rest);
+      }
 
-    setSaved(true);
-    setTimeout(() => navigate('/admin/products'), 1200);
+      setSaved(true);
+      setTimeout(() => navigate('/admin/products'), 1200);
+    } catch (error) {
+      console.error('Failed to save product in form:', error);
+    } finally {
+      setIsSaving(false);
+    }
   };
 
   const S = { // dark-theme style helpers
@@ -465,10 +473,10 @@ export default function AdminProductForm() {
             style={{ flex: 1, padding: '14px', borderRadius: '14px', background: '#1E1A12', border: '1px solid #3A2E1E', color: '#9A8A74', fontWeight: 600, fontSize: '14px', fontFamily: 'Manrope, sans-serif', cursor: 'pointer' }}>
             Annuler
           </button>
-          <motion.button whileTap={{ scale: 0.97 }} onClick={handleSave}
+          <motion.button whileTap={{ scale: isSaving ? 1 : 0.97 }} onClick={handleSave} disabled={isSaving}
             className="flex items-center justify-center gap-2"
-            style={{ flex: 2, padding: '14px', borderRadius: '14px', background: saved ? '#22c55e' : 'linear-gradient(135deg,#C9A227,#E8C84A)', border: 'none', color: '#fff', fontWeight: 700, fontSize: '14px', fontFamily: 'Manrope, sans-serif', cursor: 'pointer', boxShadow: '0 8px 24px rgba(201,162,39,0.3)' }}>
-            {saved ? <><Check size={16} /> Enregistré !</> : `${isNew ? 'Créer le produit' : 'Enregistrer les modifications'}`}
+            style={{ flex: 2, padding: '14px', borderRadius: '14px', background: saved ? '#22c55e' : isSaving ? '#3A2E1E' : 'linear-gradient(135deg,#C9A227,#E8C84A)', border: 'none', color: isSaving ? '#9A8A74' : '#fff', fontWeight: 700, fontSize: '14px', fontFamily: 'Manrope, sans-serif', cursor: isSaving ? 'not-allowed' : 'pointer', boxShadow: isSaving ? 'none' : '0 8px 24px rgba(201,162,39,0.3)' }}>
+            {saved ? <><Check size={16} /> Enregistré !</> : isSaving ? 'Sauvegarde en cours...' : `${isNew ? 'Créer le produit' : 'Enregistrer les modifications'}`}
           </motion.button>
         </div>
       </div>

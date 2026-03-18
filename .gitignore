@@ -1,5 +1,11 @@
 node_modules
+dist
+.vite
+
 # Keep environment variables out of version control
 .env
+.env.*
 
-/src/generated/prisma
+# Local Prisma artifacts
+backend/prisma/dev.db
+backend/prisma/dev.db-journal

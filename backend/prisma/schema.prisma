@@ -1,0 +1,209 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider  = "postgresql"
+  url       = env("DATABASE_URL")
+  directUrl = env("DIRECT_URL")
+}
+
+model Product {
+  id           String   @id
+  name         String
+  price        Int
+  image        String
+  category     String
+  collection   String
+  description  String
+  isNew        Boolean  @default(false)
+  isBestseller Boolean  @default(false)
+  isFeatured   Boolean  @default(false)
+  stock        Int?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+}
+
+enum OrderStatus {
+  PENDING_WHATSAPP
+  CONFIRMED
+  PAID
+  SHIPPED
+  DELIVERED
+  CANCELLED
+}
+
+enum PaymentMethod {
+  WHATSAPP
+  WAVE
+}
+
+enum PaymentStatus {
+  INITIATED
+  PENDING
+  SUCCESS
+  FAILED
+  REFUNDED
+}
+
+model Order {
+  id              String        @id @default(cuid())
+  orderRef        String        @unique
+  status          OrderStatus   @default(PENDING_WHATSAPP)
+  paymentMethod   PaymentMethod @default(WHATSAPP)
+  subtotal        Int
+  deliveryLabel   String
+  deliveryPrice   Int
+  giftWrapFee     Int           @default(0)
+  total           Int
+  customerName    String
+  customerPhone   String
+  customerEmail   String?
+  customerAddress String
+  note            String?
+  items           OrderItem[]
+  payments        Payment[]
+  receipt         Receipt?
+  createdAt       DateTime      @default(now())
+  updatedAt       DateTime      @updatedAt
+}
+
+model OrderItem {
+  id         String @id @default(cuid())
+  orderId    String
+  order      Order  @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  productId  String?
+  productName String
+  collection String
+  quantity   Int
+  unitPrice  Int
+  size       Int?
+  colorLabel String?
+  lineTotal  Int
+}
+
+model Payment {
+  id            String        @id @default(cuid())
+  orderId       String
+  order         Order         @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  method        PaymentMethod @default(WHATSAPP)
+  status        PaymentStatus @default(PENDING)
+  amount        Int
+  currency      String        @default("XOF")
+  externalRef   String        @unique
+  transactionId String?
+  failureReason String?
+  providerData  Json?
+  paidAt        DateTime?
+  createdAt     DateTime      @default(now())
+  updatedAt     DateTime      @updatedAt
+
+  @@index([orderId, createdAt])
+  @@index([status, createdAt])
+}
+
+model Receipt {
+  id           String   @id @default(cuid())
+  orderId      String   @unique
+  order        Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  receiptNumber String  @unique
+  amount       Int
+  currency     String   @default("XOF")
+  customerEmail String?
+  issuedAt     DateTime @default(now())
+  paidAt       DateTime?
+  sentAt       DateTime?
+  downloadUrl  String?
+  metadata     Json?
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
+
+  @@index([issuedAt])
+}
+
+model NotificationLog {
+  id        String   @id @default(cuid())
+  channel   String
+  type      String
+  recipient String?
+  status    String   @default("QUEUED")
+  message   String
+  meta      Json?
+  sentAt    DateTime?
+  createdAt DateTime @default(now())
+
+  @@index([channel, createdAt])
+  @@index([type, createdAt])
+}
+
+model AnalyticsEvent {
+  id        String   @id @default(cuid())
+  type      String
+  productId String?
+  value     Int      @default(1)
+  source    String?
+  meta      Json?
+  createdAt DateTime @default(now())
+
+  @@index([type, createdAt])
+  @@index([productId, createdAt])
+}
+
+model User {
+  id            String    @id @default(cuid())
+  name          String
+  email         String    @unique
+  emailVerified Boolean   @default(false)
+  image         String?
+  role          String?   @default("client")
+  phone         String?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  sessions      Session[]
+  accounts      Account[]
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  expiresAt DateTime
+  token     String   @unique
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  ipAddress String?
+  userAgent String?
+  userId    String
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+}
+
+model Account {
+  id                    String    @id @default(cuid())
+  accountId             String
+  providerId            String
+  userId                String
+  user                  User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  accessToken           String?
+  refreshToken          String?
+  idToken               String?
+  accessTokenExpiresAt  DateTime?
+  refreshTokenExpiresAt DateTime?
+  scope                 String?
+  password              String?
+  createdAt             DateTime  @default(now())
+  updatedAt             DateTime  @updatedAt
+
+  @@index([userId])
+  @@unique([providerId, accountId])
+}
+
+model Verification {
+  id         String   @id @default(cuid())
+  identifier String
+  value      String
+  expiresAt  DateTime
+  createdAt  DateTime @default(now())
+  updatedAt  DateTime @updatedAt
+
+  @@index([identifier])
+}

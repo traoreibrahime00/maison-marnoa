@@ -4,6 +4,7 @@ import { useNavigate, useSearchParams, useLocation } from 'react-router';
 import { Search, SlidersHorizontal, Heart, Star, ChevronDown, X, Check, ArrowRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { categories, formatPrice, ProductCategory } from '../data/products';
+import { ReassuranceBannerMobile } from '../components/ReassuranceBanner';
 
 const GOLD = '#C9A227';
 
@@ -55,6 +56,8 @@ export default function Collection() {
 
   return (
     <div style={{ background: colors.BG, minHeight: '100vh', fontFamily: 'Manrope, sans-serif' }}>
+
+      <ReassuranceBannerMobile />
 
       {/* ── Mobile sticky header ── */}
       <div className="lg:hidden sticky top-0 z-40 pt-12 pb-0" style={{ background: `${colors.BG}F5`, backdropFilter: 'blur(20px)', borderBottom: `1px solid ${colors.BORDER}` }}>

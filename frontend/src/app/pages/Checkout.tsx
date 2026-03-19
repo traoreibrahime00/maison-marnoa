@@ -325,10 +325,10 @@ export default function Checkout() {
                   </div>
                   {errors.phone && <p style={{ color: '#ef4444', fontSize: '11px', marginTop: '4px' }}>{errors.phone}</p>}
                 </div>
-                {/* Email optional */}
+                {/* Email — recommandé pour retrouver la commande */}
                 <div>
                   <label style={{ color: MUTED, fontSize: '11px', fontWeight: 600, letterSpacing: '0.5px', display: 'block', marginBottom: '6px' }}>
-                    E-mail <span style={{ fontWeight: 400 }}>(optionnel)</span>
+                    E-mail <span style={{ fontWeight: 400, color: GOLD }}>(recommandé — pour retrouver votre commande)</span>
                   </label>
                   <div className="flex items-center gap-3 px-4 py-3.5 rounded-2xl" style={{ background: CARD_BG, border: `1px solid ${BORDER}` }}>
                     <Mail size={15} color={MUTED} />
@@ -339,6 +339,11 @@ export default function Checkout() {
                       style={{ color: TEXT, fontFamily: 'Manrope, sans-serif', fontSize: '14px' }}
                     />
                   </div>
+                  {!form.email && (
+                    <p style={{ color: '#C9A227', fontSize: '10px', marginTop: '4px', display: 'flex', alignItems: 'center', gap: '4px' }}>
+                      ⚠️ Sans email, vous ne pourrez pas retrouver votre commande en ligne.
+                    </p>
+                  )}
                 </div>
                 {/* Address — hidden if retrait */}
                 <AnimatePresence>

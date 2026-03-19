@@ -1,6 +1,5 @@
 import React, { createContext, useContext, useState, useCallback, useEffect } from 'react';
-import { Product } from '../data/products';
-import { getMergedProducts } from '../data/productStore';
+import { Product, products as localProducts } from '../data/products';
 import { toast } from 'sonner';
 import { apiUrl } from '../lib/api';
 
@@ -131,10 +130,8 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       console.log('[AppContext] refreshProducts fetched', data.length, 'products from database');
       setAllProducts(data);
     } catch (e) {
-      console.error('[AppContext] Error fetching from DB:', e);
-      // Fallback local if DB not running / no connection
-      const local = getMergedProducts();
-      setAllProducts(local);
+      console.error('[AppContext] Error fetching from DB, using local fallback:', e);
+      setAllProducts(localProducts as Product[]);
     } finally {
       setIsProductsLoading(false);
     }

@@ -84,6 +84,16 @@ export const ordersRepository = {
     });
   },
 
+  findByRefAndEmail(orderRef: string, email: string) {
+    return prisma.order.findFirst({
+      where: {
+        orderRef,
+        customerEmail: { equals: email, mode: 'insensitive' },
+      },
+      include: { items: true, payments: true, receipt: true },
+    });
+  },
+
   findById(id: string) {
     return prisma.order.findUnique({
       where: { id },

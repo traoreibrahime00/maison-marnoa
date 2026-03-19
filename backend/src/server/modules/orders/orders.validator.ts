@@ -77,6 +77,14 @@ export function parseOrderRef(raw: unknown): string {
   return String(raw || '').trim();
 }
 
+export function parseLookupQuery(raw: unknown): { orderRef: string; email: string } | null {
+  const query = (raw || {}) as Record<string, unknown>;
+  const orderRef = String(query.ref || '').trim().toUpperCase();
+  const email = normalizeEmail(String(query.email || ''));
+  if (!orderRef || !email) return null;
+  return { orderRef, email };
+}
+
 export function parseOrderStatus(raw: unknown): OrderStatus | null {
   const value = String(raw || '').trim() as OrderStatus;
   return ORDER_STATUSES.includes(value) ? value : null;

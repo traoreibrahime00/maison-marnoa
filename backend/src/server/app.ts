@@ -10,6 +10,7 @@ import { analyticsRouter } from './routes/analytics.router';
 import { ordersRouter } from './routes/orders.router';
 import { paymentsRouter } from './routes/payments.router';
 import { productsRouter } from './routes/products.router';
+import { promosRouter } from './routes/promos.router';
 import { receiptsRouter } from './routes/receipts.router';
 
 export const app = express();
@@ -46,8 +47,9 @@ app.use('/api/products', productsRouter);
 app.use('/api/orders', ordersRouter);
 app.use('/api/payments', paymentsRouter);
 app.use('/api/receipts', receiptsRouter);
+app.use('/api/promos', promosRouter);
 app.use('/api/admin', adminRouter);
-app.use('/api/analytics', analyticsRouter);
+app.use('/api/track', analyticsRouter);
 
 app.use((_req, res) => {
   res.status(404).json({ error: 'Route not found' });

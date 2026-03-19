@@ -9,7 +9,7 @@ interface TrackEventInput {
 }
 
 export function trackEvent(input: TrackEventInput): void {
-  void fetch(apiUrl('/api/analytics/events'), {
+  void fetch(apiUrl('/api/track/events'), {
     method: 'POST',
     headers: { 'Content-Type': 'application/json' },
     body: JSON.stringify({

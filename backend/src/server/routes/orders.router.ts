@@ -3,9 +3,27 @@ import { HttpError } from '../common/errors';
 import { asyncHandler } from '../common/express';
 import { ordersService } from '../modules/orders/orders.service';
 import { InsufficientStockError } from '../modules/orders/orders.types';
-import { parseOrderPayload, parseOrderRef, parseOrdersFilter, parseOrderStatus } from '../modules/orders/orders.validator';
+import { parseOrderPayload, parseOrderRef, parseOrdersFilter, parseOrderStatus, parseLookupQuery } from '../modules/orders/orders.validator';
 
 export const ordersRouter = Router();
+
+// Guest order lookup: GET /api/orders/lookup?ref=MN-12345&email=client@email.com
+ordersRouter.get(
+  '/lookup',
+  asyncHandler(async (req, res) => {
+    const query = parseLookupQuery(req.query);
+    if (!query) {
+      throw new HttpError(400, 'Paramètres manquants : ref et email requis');
+    }
+
+    const order = await ordersService.lookupOrder(query.orderRef, query.email);
+    if (!order) {
+      throw new HttpError(404, 'Commande introuvable. Vérifiez la référence et l\'adresse email.');
+    }
+
+    res.status(200).json(order);
+  })
+);
 
 ordersRouter.get(
   '/',

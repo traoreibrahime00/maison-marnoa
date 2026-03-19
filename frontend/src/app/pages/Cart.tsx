@@ -8,6 +8,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { useApp, useColors } from '../context/AppContext';
 import { formatPrice } from '../data/products';
 import { openWhatsApp } from '../utils/whatsapp';
+import { apiUrl } from '../lib/api';
 import { toast } from 'sonner';
 
 const SHIPPING      = 3000;
@@ -21,11 +22,13 @@ export default function Cart() {
   } = useApp();
   const { BG, CARD_BG, BORDER, TEXT, MUTED, GOLD } = useColors();
 
-  const [promoCode, setPromoCode]     = useState('');
+  const [promoCode, setPromoCode]       = useState('');
   const [promoApplied, setPromoApplied] = useState(false);
-  const [promoError, setPromoError]   = useState('');
+  const [promoDiscount, setPromoDiscount] = useState(10); // % from server
+  const [promoError, setPromoError]     = useState('');
+  const [promoLoading, setPromoLoading] = useState(false);
 
-  const discount     = promoApplied ? Math.round(cartTotal * 0.1) : 0;
+  const discount = promoApplied ? Math.round(cartTotal * (promoDiscount / 100)) : 0;
   const giftWrapFee  = isGiftWrap ? 2500 : 0;
   const freeShipping = cartTotal >= FREE_SHIPPING;
   const shipping     = cartItems.length > 0 ? (freeShipping ? 0 : SHIPPING) : 0;
@@ -35,14 +38,29 @@ export default function Cart() {
   const remaining  = Math.max(FREE_SHIPPING - cartTotal, 0);
   const progressPct = Math.min((cartTotal / FREE_SHIPPING) * 100, 100);
 
-  const applyPromo = () => {
-    if (promoCode.toUpperCase() === 'MARNOA10') {
-      setPromoApplied(true);
-      setPromoError('');
-      toast('🎉 Code promo appliqué !', { description: '10% de réduction accordée', duration: 2500 });
-    } else {
-      setPromoError('Code promo invalide');
-      setPromoApplied(false);
+  const applyPromo = async () => {
+    if (!promoCode.trim()) return;
+    setPromoLoading(true);
+    setPromoError('');
+    try {
+      const res = await fetch(apiUrl('/api/promos/validate'), {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ code: promoCode.trim() }),
+      });
+      const data = await res.json() as { valid: boolean; discount: number; error?: string };
+      if (data.valid) {
+        setPromoApplied(true);
+        setPromoDiscount(data.discount);
+        toast('🎉 Code promo appliqué !', { description: `-${data.discount}% de réduction`, duration: 2500 });
+      } else {
+        setPromoError(data.error || 'Code promo invalide');
+        setPromoApplied(false);
+      }
+    } catch {
+      setPromoError('Erreur réseau, réessayez.');
+    } finally {
+      setPromoLoading(false);
     }
   };
 
@@ -138,38 +156,60 @@ export default function Cart() {
             {/* ── Left column ── */}
             <div>
               {/* ── FREE SHIPPING PROGRESS BAR ── */}
-              <motion.div
-                initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}
-                className="rounded-2xl p-4 mb-4"
-                style={{ background: freeShipping ? 'linear-gradient(135deg,#e8f5e9,#f1f8e9)' : 'linear-gradient(135deg, #FDF8E8, #FFF3C0)', border: `1px solid ${freeShipping ? 'rgba(34,197,94,0.3)' : 'rgba(201,162,39,0.25)'}` }}
-              >
-                <div className="flex items-center justify-between mb-2">
-                  <div className="flex items-center gap-2">
-                    <Truck size={14} color={freeShipping ? '#22c55e' : GOLD} />
-                    {freeShipping ? (
-                      <span style={{ color: '#16a34a', fontWeight: 700, fontSize: '12px' }}>
-                        🎉 Livraison gratuite à Abidjan débloquée !
-                      </span>
-                    ) : (
-                      <span style={{ color: TEXT, fontWeight: 700, fontSize: '12px' }}>
-                        Plus que <span style={{ color: GOLD }}>{formatPrice(remaining)}</span> pour la livraison gratuite
-                      </span>
-                    )}
+              {cartItems.length > 0 && (
+                <motion.div
+                  initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}
+                  className="rounded-2xl p-4 mb-4"
+                  style={{
+                    background: freeShipping
+                      ? 'linear-gradient(135deg,#e8f5e9,#f1f8e9)'
+                      : 'linear-gradient(135deg, #FDF8E8, #FFF3C0)',
+                    border: `1px solid ${freeShipping ? 'rgba(34,197,94,0.3)' : 'rgba(201,162,39,0.25)'}`,
+                    boxShadow: remaining > 0 && remaining <= 10000 ? '0 0 0 2px rgba(201,162,39,0.2)' : 'none',
+                  }}
+                >
+                  <div className="flex items-center justify-between mb-2">
+                    <div className="flex items-center gap-2">
+                      <motion.div
+                        animate={!freeShipping && remaining <= 10000 ? { scale: [1, 1.2, 1] } : {}}
+                        transition={{ repeat: Infinity, duration: 1.5 }}
+                      >
+                        <Truck size={14} color={freeShipping ? '#22c55e' : GOLD} />
+                      </motion.div>
+                      {freeShipping ? (
+                        <span style={{ color: '#16a34a', fontWeight: 700, fontSize: '12px' }}>
+                          🎉 Livraison Abidjan offerte !
+                        </span>
+                      ) : remaining <= 10000 ? (
+                        <span style={{ color: TEXT, fontWeight: 700, fontSize: '12px' }}>
+                          🔥 Plus que <span style={{ color: '#ef4444', fontWeight: 800 }}>{formatPrice(remaining)}</span> pour la livraison gratuite !
+                        </span>
+                      ) : (
+                        <span style={{ color: TEXT, fontWeight: 700, fontSize: '12px' }}>
+                          Ajoutez <span style={{ color: GOLD }}>{formatPrice(remaining)}</span> pour la livraison <strong>gratuite</strong>
+                        </span>
+                      )}
+                    </div>
+                    <span style={{ color: MUTED, fontSize: '10px', fontWeight: 600 }}>
+                      {Math.round(progressPct)}%
+                    </span>
                   </div>
-                  <span style={{ color: MUTED, fontSize: '10px', fontWeight: 600 }}>
-                    {formatPrice(FREE_SHIPPING)}
-                  </span>
-                </div>
-                <div className="h-2 rounded-full overflow-hidden" style={{ background: 'rgba(0,0,0,0.08)' }}>
-                  <motion.div
-                    className="h-full rounded-full"
-                    initial={{ width: 0 }}
-                    animate={{ width: `${progressPct}%` }}
-                    transition={{ duration: 0.6, ease: 'easeOut' }}
-                    style={{ background: freeShipping ? 'linear-gradient(90deg,#22c55e,#16a34a)' : 'linear-gradient(90deg,#C9A227,#E8C84A)' }}
-                  />
-                </div>
-              </motion.div>
+                  <div className="h-2.5 rounded-full overflow-hidden" style={{ background: 'rgba(0,0,0,0.08)' }}>
+                    <motion.div
+                      className="h-full rounded-full"
+                      initial={{ width: 0 }}
+                      animate={{ width: `${progressPct}%` }}
+                      transition={{ duration: 0.6, ease: 'easeOut' }}
+                      style={{ background: freeShipping ? 'linear-gradient(90deg,#22c55e,#16a34a)' : 'linear-gradient(90deg,#C9A227,#E8C84A)' }}
+                    />
+                  </div>
+                  {!freeShipping && (
+                    <p style={{ color: MUTED, fontSize: '10px', marginTop: '6px' }}>
+                      Livraison Abidjan gratuite dès {formatPrice(FREE_SHIPPING)} d'achats
+                    </p>
+                  )}
+                </motion.div>
+              )}
 
               {/* Items */}
               <div className="flex flex-col gap-3 mb-5">
@@ -291,11 +331,14 @@ export default function Cart() {
                   />
                   <motion.button
                     onClick={applyPromo}
-                    className="px-4 py-2.5 rounded-xl"
+                    disabled={promoLoading || promoApplied}
+                    className="px-4 py-2.5 rounded-xl flex items-center gap-1.5"
                     whileTap={{ scale: 0.95 }}
-                    style={{ background: promoApplied ? 'rgba(34,197,94,0.12)' : 'linear-gradient(135deg, #C9A227, #E8C84A)', color: promoApplied ? '#22c55e' : '#fff', fontWeight: 700, fontSize: '12px', border: promoApplied ? '1px solid rgba(34,197,94,0.3)' : 'none' }}
+                    style={{ background: promoApplied ? 'rgba(34,197,94,0.12)' : 'linear-gradient(135deg, #C9A227, #E8C84A)', color: promoApplied ? '#22c55e' : '#fff', fontWeight: 700, fontSize: '12px', border: promoApplied ? '1px solid rgba(34,197,94,0.3)' : 'none', opacity: promoLoading ? 0.7 : 1 }}
                   >
-                    {promoApplied ? 'Appliqué ✓' : 'Appliquer'}
+                    {promoLoading
+                      ? <div className="w-3.5 h-3.5 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                      : promoApplied ? 'Appliqué ✓' : 'Appliquer'}
                   </motion.button>
                 </div>
                 {promoError && <p style={{ color: '#ef4444', fontSize: '11px', marginTop: '6px' }}>{promoError}</p>}

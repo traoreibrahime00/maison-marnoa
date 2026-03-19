@@ -1,7 +1,7 @@
 import { useEffect } from 'react';
 import { Outlet, useNavigate, useLocation, Link } from 'react-router';
 import { motion } from 'motion/react';
-import { LayoutGrid, LogOut, Plus, Home, Package, ShoppingCart, CreditCard, BarChart3 } from 'lucide-react';
+import { LayoutGrid, LogOut, Plus, Home, Package, ShoppingCart, CreditCard, BarChart3, Settings } from 'lucide-react';
 import { MaisonMarnoaLogo } from '../../components/MaisonMarnoaLogo';
 
 const ADMIN_KEY = 'mn_admin_session';
@@ -22,20 +22,19 @@ export default function AdminLayout() {
   };
 
   const nav = [
-    { path: '/admin/dashboard', icon: BarChart3, label: 'Dashboard' },
-    { path: '/admin/orders', icon: ShoppingCart, label: 'Commandes' },
-    { path: '/admin/payments', icon: CreditCard, label: 'Paiements' },
-    { path: '/admin/products', icon: Package, label: 'Produits' },
+    { path: '/admin/dashboard', icon: BarChart3,  label: 'Dashboard' },
+    { path: '/admin/orders',    icon: ShoppingCart, label: 'Commandes' },
+    { path: '/admin/payments',  icon: CreditCard,   label: 'Paiements' },
+    { path: '/admin/products',  icon: Package,      label: 'Produits' },
+    { path: '/admin/settings',  icon: Settings,     label: 'Paramètres' },
   ];
 
   const pageTitle =
-    location.pathname.startsWith('/admin/dashboard')
-      ? 'Dashboard'
-      : location.pathname.startsWith('/admin/orders')
-      ? 'Gestion des commandes'
-      : location.pathname.startsWith('/admin/payments')
-      ? 'Gestion des paiements'
-      : 'Gestion des produits';
+    location.pathname.startsWith('/admin/dashboard') ? 'Dashboard'
+    : location.pathname.startsWith('/admin/orders')   ? 'Gestion des commandes'
+    : location.pathname.startsWith('/admin/payments') ? 'Gestion des paiements'
+    : location.pathname.startsWith('/admin/settings') ? 'Paramètres'
+    : 'Gestion des produits';
 
   const showNewProductAction = location.pathname.startsWith('/admin/products');
 

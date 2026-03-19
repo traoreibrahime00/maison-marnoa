@@ -1,6 +1,11 @@
 import { useEffect, useMemo, useState } from 'react';
 import { formatPrice } from '../../data/products';
 import { apiUrl } from '../../lib/api';
+import {
+  LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid,
+  Tooltip, ResponsiveContainer,
+} from 'recharts';
+import { TrendingUp, ShoppingBag, Package, AlertTriangle, Bell } from 'lucide-react';
 
 type DashboardResponse = {
   metrics: {
@@ -11,8 +16,52 @@ type DashboardResponse = {
     statuses: Record<string, number>;
   };
   salesByDay: Array<{ date: string; amount: number; orders: number }>;
-  notifications: Array<{ id: string; type: string; message: string; createdAt: string; status: string }>;
+  topProducts: Array<{ name: string; revenue: number; count: number }>;
+  notifications: Array<{ id: string; type: string; message: string; createdAt: string; status: string; meta?: Record<string, string> }>;
 };
+
+const STATUS_FR: Record<string, string> = {
+  PENDING: 'En attente',
+  CONFIRMED: 'Confirmée',
+  PAID: 'Payée',
+  SHIPPED: 'Expédiée',
+  DELIVERED: 'Livrée',
+  CANCELLED: 'Annulée',
+};
+
+const STATUS_COLOR: Record<string, string> = {
+  PENDING: '#f59e0b',
+  CONFIRMED: '#3b82f6',
+  PAID: '#22c55e',
+  SHIPPED: '#a78bfa',
+  DELIVERED: '#C9A227',
+  CANCELLED: '#ef4444',
+};
+
+// Custom tooltip for the line chart
+function SalesTooltip({ active, payload, label }: { active?: boolean; payload?: Array<{ value: number }>; label?: string }) {
+  if (!active || !payload?.length) return null;
+  return (
+    <div style={{ background: '#1E1A12', border: '1px solid #3A2E1E', borderRadius: '12px', padding: '10px 14px' }}>
+      <p style={{ color: '#9A8A74', fontSize: '11px', fontFamily: 'Manrope, sans-serif', marginBottom: '4px' }}>{label}</p>
+      <p style={{ color: '#C9A227', fontSize: '14px', fontWeight: 700, fontFamily: 'Manrope, sans-serif' }}>
+        {formatPrice(payload[0]?.value ?? 0)}
+      </p>
+    </div>
+  );
+}
+
+function BarTooltip({ active, payload, label }: { active?: boolean; payload?: Array<{ value: number }>; label?: string }) {
+  if (!active || !payload?.length) return null;
+  return (
+    <div style={{ background: '#1E1A12', border: '1px solid #3A2E1E', borderRadius: '12px', padding: '10px 14px', maxWidth: '200px' }}>
+      <p style={{ color: '#9A8A74', fontSize: '11px', fontFamily: 'Manrope, sans-serif', marginBottom: '4px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{label}</p>
+      <p style={{ color: '#C9A227', fontSize: '14px', fontWeight: 700, fontFamily: 'Manrope, sans-serif' }}>
+        {formatPrice(payload[0]?.value ?? 0)}
+      </p>
+    </div>
+  );
+}
 
 export default function AdminDashboard() {
   const [data, setData] = useState<DashboardResponse | null>(null);
@@ -21,13 +70,12 @@ export default function AdminDashboard() {
 
   useEffect(() => {
     let cancelled = false;
-
     const load = async () => {
       setLoading(true);
       setError('');
       try {
         const res = await fetch(apiUrl('/api/admin/dashboard'));
-        if (!res.ok) throw new Error('Failed to load dashboard');
+        if (!res.ok) throw new Error('Failed');
         const json = (await res.json()) as DashboardResponse;
         if (!cancelled) setData(json);
       } catch {
@@ -36,11 +84,8 @@ export default function AdminDashboard() {
         if (!cancelled) setLoading(false);
       }
     };
-
     load();
-    return () => {
-      cancelled = true;
-    };
+    return () => { cancelled = true; };
   }, []);
 
   const statusRows = useMemo(() => {
@@ -48,8 +93,30 @@ export default function AdminDashboard() {
     return Object.entries(statuses).sort((a, b) => b[1] - a[1]);
   }, [data?.metrics.statuses]);
 
+  // Last 14 days of sales, formatted for chart
+  const salesChartData = useMemo(() => {
+    if (!data?.salesByDay) return [];
+    return data.salesByDay.slice(-14).map(row => ({
+      ...row,
+      label: row.date.slice(5), // MM-DD
+    }));
+  }, [data?.salesByDay]);
+
+  // Top 5 products for bar chart
+  const topChartData = useMemo(() => {
+    if (!data?.topProducts) return [];
+    return data.topProducts.slice(0, 5).map(p => ({
+      name: p.name.length > 18 ? p.name.slice(0, 18) + '…' : p.name,
+      revenue: p.revenue,
+    }));
+  }, [data?.topProducts]);
+
   if (loading) {
-    return <p style={{ color: '#9A8A74', fontFamily: 'Manrope, sans-serif' }}>Chargement dashboard…</p>;
+    return (
+      <div className="flex items-center justify-center py-24">
+        <p style={{ color: '#9A8A74', fontFamily: 'Manrope, sans-serif' }}>Chargement dashboard…</p>
+      </div>
+    );
   }
 
   if (error) {
@@ -58,62 +125,198 @@ export default function AdminDashboard() {
 
   if (!data) return null;
 
+  const kpis = [
+    {
+      label: 'Chiffre d\'affaires',
+      value: formatPrice(data.metrics.revenuePaid),
+      icon: TrendingUp,
+      color: '#C9A227',
+      bg: 'rgba(201,162,39,0.08)',
+    },
+    {
+      label: 'Commandes',
+      value: data.metrics.totalOrders,
+      icon: ShoppingBag,
+      color: '#3b82f6',
+      bg: 'rgba(59,130,246,0.08)',
+    },
+    {
+      label: 'Produits',
+      value: data.metrics.totalProducts,
+      icon: Package,
+      color: '#a78bfa',
+      bg: 'rgba(167,139,250,0.08)',
+    },
+    {
+      label: 'Stock critique',
+      value: data.metrics.lowStockCount,
+      icon: AlertTriangle,
+      color: data.metrics.lowStockCount > 0 ? '#ef4444' : '#9A8A74',
+      bg: data.metrics.lowStockCount > 0 ? 'rgba(239,68,68,0.08)' : 'rgba(148,163,184,0.05)',
+    },
+  ];
+
   return (
     <div className="grid gap-6">
+
+      {/* KPI Cards */}
       <div className="grid grid-cols-4 gap-4">
-        {[
-          { label: 'Produits', value: data.metrics.totalProducts },
-          { label: 'Commandes', value: data.metrics.totalOrders },
-          { label: 'CA payé', value: formatPrice(data.metrics.revenuePaid) },
-          { label: 'Stock critique', value: data.metrics.lowStockCount },
-        ].map(card => (
-          <div key={card.label} className="rounded-2xl p-4" style={{ background: '#1E1A12', border: '1px solid #3A2E1E' }}>
-            <p style={{ color: '#9A8A74', fontSize: '11px', marginBottom: '6px', fontFamily: 'Manrope, sans-serif' }}>{card.label}</p>
-            <p style={{ color: '#F5EFE0', fontSize: '24px', fontWeight: 800, fontFamily: 'Manrope, sans-serif' }}>{card.value}</p>
+        {kpis.map(kpi => (
+          <div key={kpi.label} className="rounded-2xl p-5"
+            style={{ background: '#1E1A12', border: '1px solid #3A2E1E' }}>
+            <div className="flex items-center justify-between mb-3">
+              <p style={{ color: '#9A8A74', fontSize: '11px', fontWeight: 600, letterSpacing: '0.5px', textTransform: 'uppercase', fontFamily: 'Manrope, sans-serif' }}>
+                {kpi.label}
+              </p>
+              <div className="w-8 h-8 rounded-xl flex items-center justify-center"
+                style={{ background: kpi.bg }}>
+                <kpi.icon size={14} color={kpi.color} />
+              </div>
+            </div>
+            <p style={{ color: '#F5EFE0', fontSize: '26px', fontWeight: 800, fontFamily: 'Manrope, sans-serif', lineHeight: 1 }}>
+              {kpi.value}
+            </p>
           </div>
         ))}
       </div>
 
+      {/* Sales Chart */}
+      {salesChartData.length > 0 && (
+        <div className="rounded-2xl p-5" style={{ background: '#1E1A12', border: '1px solid #3A2E1E' }}>
+          <div className="flex items-center justify-between mb-5">
+            <h3 style={{ color: '#C9A227', fontSize: '13px', fontWeight: 700, fontFamily: 'Manrope, sans-serif' }}>
+              Ventes — 14 derniers jours
+            </h3>
+          </div>
+          <ResponsiveContainer width="100%" height={200}>
+            <LineChart data={salesChartData} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
+              <CartesianGrid strokeDasharray="3 3" stroke="#2A2218" vertical={false} />
+              <XAxis
+                dataKey="label"
+                tick={{ fill: '#9A8A74', fontSize: 11, fontFamily: 'Manrope, sans-serif' }}
+                axisLine={false} tickLine={false}
+              />
+              <YAxis
+                tick={{ fill: '#9A8A74', fontSize: 10, fontFamily: 'Manrope, sans-serif' }}
+                axisLine={false} tickLine={false}
+                tickFormatter={v => `${(v / 1000).toFixed(0)}k`}
+                width={40}
+              />
+              <Tooltip content={<SalesTooltip />} />
+              <Line
+                type="monotone"
+                dataKey="amount"
+                stroke="#C9A227"
+                strokeWidth={2.5}
+                dot={{ fill: '#C9A227', r: 3, strokeWidth: 0 }}
+                activeDot={{ r: 5, fill: '#E8C84A', strokeWidth: 0 }}
+              />
+            </LineChart>
+          </ResponsiveContainer>
+        </div>
+      )}
+
       <div className="grid grid-cols-2 gap-4">
-        <div className="rounded-2xl p-5" style={{ background: '#1E1A12', border: '1px solid #3A2E1E' }}>
-          <h3 style={{ color: '#C9A227', fontSize: '13px', fontWeight: 700, marginBottom: '12px', fontFamily: 'Manrope, sans-serif' }}>Statuts commandes</h3>
-          <div className="flex flex-col gap-2">
-            {statusRows.map(([status, count]) => (
-              <div key={status} className="flex justify-between">
-                <span style={{ color: '#9A8A74', fontSize: '12px', fontFamily: 'Manrope, sans-serif' }}>{status}</span>
-                <span style={{ color: '#F5EFE0', fontSize: '12px', fontWeight: 700, fontFamily: 'Manrope, sans-serif' }}>{count}</span>
-              </div>
-            ))}
+        {/* Top Products Bar Chart */}
+        {topChartData.length > 0 && (
+          <div className="rounded-2xl p-5" style={{ background: '#1E1A12', border: '1px solid #3A2E1E' }}>
+            <h3 style={{ color: '#C9A227', fontSize: '13px', fontWeight: 700, marginBottom: '16px', fontFamily: 'Manrope, sans-serif' }}>
+              Top 5 produits
+            </h3>
+            <ResponsiveContainer width="100%" height={180}>
+              <BarChart data={topChartData} layout="vertical" margin={{ top: 0, right: 8, left: 0, bottom: 0 }}>
+                <CartesianGrid strokeDasharray="3 3" stroke="#2A2218" horizontal={false} />
+                <XAxis
+                  type="number"
+                  tick={{ fill: '#9A8A74', fontSize: 10, fontFamily: 'Manrope, sans-serif' }}
+                  axisLine={false} tickLine={false}
+                  tickFormatter={v => `${(v / 1000).toFixed(0)}k`}
+                />
+                <YAxis
+                  type="category"
+                  dataKey="name"
+                  tick={{ fill: '#9A8A74', fontSize: 10, fontFamily: 'Manrope, sans-serif' }}
+                  axisLine={false} tickLine={false}
+                  width={90}
+                />
+                <Tooltip content={<BarTooltip />} />
+                <Bar dataKey="revenue" fill="#C9A227" radius={[0, 6, 6, 0]} />
+              </BarChart>
+            </ResponsiveContainer>
           </div>
-        </div>
+        )}
 
+        {/* Order Statuses */}
         <div className="rounded-2xl p-5" style={{ background: '#1E1A12', border: '1px solid #3A2E1E' }}>
-          <h3 style={{ color: '#C9A227', fontSize: '13px', fontWeight: 700, marginBottom: '12px', fontFamily: 'Manrope, sans-serif' }}>Ventes récentes</h3>
-          <div className="flex flex-col gap-2">
-            {data.salesByDay.slice(-8).map(row => (
-              <div key={row.date} className="flex justify-between">
-                <span style={{ color: '#9A8A74', fontSize: '12px', fontFamily: 'Manrope, sans-serif' }}>{row.date}</span>
-                <span style={{ color: '#F5EFE0', fontSize: '12px', fontWeight: 700, fontFamily: 'Manrope, sans-serif' }}>{formatPrice(row.amount)}</span>
-              </div>
-            ))}
+          <h3 style={{ color: '#C9A227', fontSize: '13px', fontWeight: 700, marginBottom: '16px', fontFamily: 'Manrope, sans-serif' }}>
+            Statuts commandes
+          </h3>
+          <div className="flex flex-col gap-3">
+            {statusRows.map(([status, count]) => {
+              const color = STATUS_COLOR[status] ?? '#9A8A74';
+              const total = statusRows.reduce((s, [, n]) => s + n, 0);
+              const pct = total > 0 ? Math.round((count / total) * 100) : 0;
+              return (
+                <div key={status}>
+                  <div className="flex justify-between mb-1">
+                    <span style={{ color: '#9A8A74', fontSize: '12px', fontFamily: 'Manrope, sans-serif' }}>
+                      {STATUS_FR[status] ?? status}
+                    </span>
+                    <span style={{ color: '#F5EFE0', fontSize: '12px', fontWeight: 700, fontFamily: 'Manrope, sans-serif' }}>
+                      {count}
+                    </span>
+                  </div>
+                  <div style={{ height: '4px', background: '#2A2218', borderRadius: '2px', overflow: 'hidden' }}>
+                    <div style={{ width: `${pct}%`, height: '100%', background: color, borderRadius: '2px', transition: 'width 0.6s ease' }} />
+                  </div>
+                </div>
+              );
+            })}
+            {statusRows.length === 0 && (
+              <p style={{ color: '#5A4E3E', fontSize: '12px', fontFamily: 'Manrope, sans-serif' }}>Aucune commande.</p>
+            )}
           </div>
         </div>
       </div>
 
-      <div className="rounded-2xl p-5" style={{ background: '#1E1A12', border: '1px solid #3A2E1E' }}>
-        <h3 style={{ color: '#C9A227', fontSize: '13px', fontWeight: 700, marginBottom: '12px', fontFamily: 'Manrope, sans-serif' }}>Notifications WhatsApp</h3>
-        <div className="flex flex-col gap-2">
-          {data.notifications.slice(0, 10).map(row => (
-            <div key={row.id} className="flex justify-between gap-4" style={{ borderBottom: '1px solid #2A2218', paddingBottom: '8px' }}>
-              <div>
-                <p style={{ color: '#F5EFE0', fontSize: '12px', fontFamily: 'Manrope, sans-serif' }}>{row.message}</p>
-                <p style={{ color: '#9A8A74', fontSize: '10px', fontFamily: 'Manrope, sans-serif' }}>{new Date(row.createdAt).toLocaleString('fr-CI')}</p>
+      {/* Recent WhatsApp Notifications */}
+      {data.notifications.length > 0 && (
+        <div className="rounded-2xl p-5" style={{ background: '#1E1A12', border: '1px solid #3A2E1E' }}>
+          <div className="flex items-center gap-2 mb-4">
+            <Bell size={14} color="#C9A227" />
+            <h3 style={{ color: '#C9A227', fontSize: '13px', fontWeight: 700, fontFamily: 'Manrope, sans-serif' }}>
+              Notifications récentes
+            </h3>
+          </div>
+          <div className="flex flex-col gap-0">
+            {data.notifications.slice(0, 8).map((row, i) => (
+              <div key={row.id}
+                className="flex items-start justify-between gap-4 py-3"
+                style={{ borderBottom: i < Math.min(data.notifications.length, 8) - 1 ? '1px solid #2A2218' : 'none' }}>
+                <div className="flex-1 min-w-0">
+                  <p style={{ color: '#F5EFE0', fontSize: '12px', fontFamily: 'Manrope, sans-serif', lineHeight: 1.5 }}>
+                    {row.message}
+                  </p>
+                  <p style={{ color: '#9A8A74', fontSize: '10px', fontFamily: 'Manrope, sans-serif', marginTop: '2px' }}>
+                    {new Date(row.createdAt).toLocaleString('fr-CI')}
+                  </p>
+                </div>
+                <div className="flex items-center gap-2 flex-shrink-0">
+                  {row.meta?.waClickUrl && (
+                    <a href={row.meta.waClickUrl} target="_blank" rel="noopener noreferrer"
+                      style={{ background: 'rgba(37,211,102,0.12)', border: '1px solid rgba(37,211,102,0.25)', color: '#25D366', fontSize: '10px', fontWeight: 700, padding: '4px 10px', borderRadius: '8px', fontFamily: 'Manrope, sans-serif', textDecoration: 'none', whiteSpace: 'nowrap' }}>
+                      WhatsApp
+                    </a>
+                  )}
+                  <span style={{ color: '#C9A227', fontSize: '10px', fontWeight: 700, fontFamily: 'Manrope, sans-serif' }}>
+                    {row.status}
+                  </span>
+                </div>
               </div>
-              <span style={{ color: '#C9A227', fontSize: '10px', fontWeight: 700, fontFamily: 'Manrope, sans-serif', whiteSpace: 'nowrap' }}>{row.status}</span>
-            </div>
-          ))}
+            ))}
+          </div>
         </div>
-      </div>
+      )}
     </div>
   );
 }

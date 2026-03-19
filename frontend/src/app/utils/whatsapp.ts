@@ -5,7 +5,8 @@
  */
 import { apiUrl } from '../lib/api';
 
-export const WA_NUMBER = '2250700000000'; // ← Remplacez par le vrai numéro
+// Numéro WhatsApp sans + ni espaces — défini via VITE_WA_NUMBER dans .env
+export const WA_NUMBER = import.meta.env.VITE_WA_NUMBER || '2250700000000';
 
 /** Format a number as FCFA price string */
 export function fmtPrice(amount: number): string {

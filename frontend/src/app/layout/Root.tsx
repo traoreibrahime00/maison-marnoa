@@ -5,6 +5,7 @@ import { BottomNav } from '../components/BottomNav';
 import { WhatsAppButton } from '../components/WhatsAppButton';
 import { SplashScreen } from '../components/SplashScreen';
 import { DesktopHeader } from '../components/DesktopHeader';
+import { ReassuranceBanner } from '../components/ReassuranceBanner';
 import { useApp } from '../context/AppContext';
 import { motion, AnimatePresence } from 'motion/react';
 
@@ -43,6 +44,7 @@ export default function Root() {
       }} />
 
       {!hideNav && <DesktopHeader />}
+      {!hideNav && <ReassuranceBanner />}
 
       <div
         className="w-full max-w-[430px] lg:max-w-none mx-auto flex flex-col min-h-screen overflow-x-hidden"

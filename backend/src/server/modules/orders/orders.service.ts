@@ -36,7 +36,19 @@ export const ordersService = {
     return ordersRepository.findById(id);
   },
 
-  updateOrderStatus(orderRef: string, status: OrderStatus) {
-    return ordersRepository.updateStatus(orderRef, status);
+  async updateOrderStatus(orderRef: string, status: OrderStatus) {
+    const order = await ordersRepository.updateStatus(orderRef, status);
+    // Notification client (fire-and-forget)
+    void notificationsService.logOrderStatusChanged(
+      orderRef,
+      status,
+      order.customerPhone,
+      order.customerName
+    );
+    return order;
+  },
+
+  lookupOrder(orderRef: string, email: string) {
+    return ordersRepository.findByRefAndEmail(orderRef, email);
   },
 };

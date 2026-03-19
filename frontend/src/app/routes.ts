@@ -19,6 +19,7 @@ import AdminOrders from './pages/admin/AdminOrders';
 import AdminPayments from './pages/admin/AdminPayments';
 import AdminProducts from './pages/admin/AdminProducts';
 import AdminProductForm from './pages/admin/AdminProductForm';
+import AdminSettings from './pages/admin/AdminSettings';
 import NotFound from './pages/NotFound';
 export const router = createBrowserRouter([
   {
@@ -65,6 +66,11 @@ export const router = createBrowserRouter([
       { path: 'new', Component: AdminProductForm },
       { path: ':id/edit', Component: AdminProductForm },
     ],
+  },
+  {
+    path: '/admin/settings',
+    Component: AdminLayout,
+    children: [{ index: true, Component: AdminSettings }],
   },
   { path: '*', Component: NotFound },
 ]);

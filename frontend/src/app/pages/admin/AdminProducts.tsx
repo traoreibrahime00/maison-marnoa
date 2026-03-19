@@ -1,30 +1,76 @@
-import { useState, useEffect } from 'react';
+import { useState, useEffect, useCallback } from 'react';
 import { useNavigate } from 'react-router';
 import { motion, AnimatePresence } from 'motion/react';
-import { Pencil, Trash2, Plus, Search, Package, Star, AlertTriangle } from 'lucide-react';
-import {
-  getMergedProducts, deleteProduct, isStaticProduct,
-} from '../../data/productStore';
-import { Product, categories, formatPrice } from '../../data/products';
+import { Pencil, Trash2, Plus, Search, Package, AlertTriangle, Star, Zap, Sparkles } from 'lucide-react';
+import { apiUrl } from '../../lib/api';
+import { categories, formatPrice } from '../../data/products';
+
+type ApiProduct = {
+  id: string;
+  name: string;
+  image: string;
+  category: string;
+  collection: string;
+  description: string;
+  price: number;
+  stock: number | null;
+  isNew: boolean;
+  isBestseller: boolean;
+  isFeatured: boolean;
+};
 
 export default function AdminProducts() {
   const navigate = useNavigate();
-  const [products, setProducts] = useState<Product[]>([]);
+  const [products, setProducts] = useState<ApiProduct[]>([]);
+  const [loading, setLoading] = useState(true);
   const [search, setSearch] = useState('');
   const [filterCat, setFilterCat] = useState('all');
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
-
-  const reload = () => setProducts(getMergedProducts());
-  useEffect(() => { reload(); }, []);
-
   const [isDeleting, setIsDeleting] = useState(false);
+  const [toggling, setToggling] = useState<string | null>(null);
+
+  const reload = useCallback(async () => {
+    setLoading(true);
+    try {
+      const res = await fetch(apiUrl('/api/products'));
+      if (!res.ok) throw new Error('Failed');
+      const data = await res.json() as ApiProduct[];
+      setProducts(data);
+    } catch {
+      // keep previous state on error
+    } finally {
+      setLoading(false);
+    }
+  }, []);
+
+  useEffect(() => { reload(); }, [reload]);
 
   const handleDelete = async (id: string) => {
     setIsDeleting(true);
-    await deleteProduct(id);
-    reload();
-    setConfirmDelete(null);
-    setIsDeleting(false);
+    try {
+      await fetch(apiUrl(`/api/products/${id}`), { method: 'DELETE' });
+      await reload();
+    } finally {
+      setConfirmDelete(null);
+      setIsDeleting(false);
+    }
+  };
+
+  const handleToggle = async (product: ApiProduct, field: 'isNew' | 'isBestseller' | 'isFeatured') => {
+    const key = `${product.id}-${field}`;
+    setToggling(key);
+    try {
+      await fetch(apiUrl(`/api/products/${product.id}`), {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ [field]: !product[field] }),
+      });
+      setProducts(prev =>
+        prev.map(p => p.id === product.id ? { ...p, [field]: !p[field] } : p)
+      );
+    } finally {
+      setToggling(null);
+    }
   };
 
   const filtered = products.filter(p => {
@@ -69,7 +115,7 @@ export default function AdminProducts() {
         {[
           { label: 'Total produits', value: products.length, icon: Package },
           { label: 'Résultats filtrés', value: filtered.length, icon: Search },
-          { label: 'Stock critique (≤3)', value: products.filter(p => (p.stock ?? 99) <= 3).length, icon: AlertTriangle, warn: true },
+          { label: 'Stock critique (≤3)', value: products.filter(p => p.stock !== null && p.stock <= 3).length, icon: AlertTriangle, warn: true },
         ].map(({ label, value, icon: Icon, warn }) => (
           <div key={label} className="rounded-2xl p-4"
             style={{ background: '#1E1A12', border: `1px solid ${warn && value > 0 ? 'rgba(239,68,68,0.3)' : '#3A2E1E'}` }}>
@@ -88,99 +134,124 @@ export default function AdminProducts() {
       <div className="rounded-2xl overflow-hidden" style={{ border: '1px solid #3A2E1E' }}>
         <div className="grid gap-0">
           {/* Header */}
-          <div className="grid grid-cols-[60px_1fr_130px_110px_80px_90px_100px] px-5 py-3"
+          <div className="grid grid-cols-[60px_1fr_120px_110px_70px_130px_90px] px-5 py-3"
             style={{ background: '#1E1A12', borderBottom: '1px solid #3A2E1E' }}>
-            {['Photo', 'Produit', 'Catégorie', 'Prix', 'Stock', 'Statut', 'Actions'].map(h => (
+            {['Photo', 'Produit', 'Catégorie', 'Prix', 'Stock', 'Badges', 'Actions'].map(h => (
               <span key={h} style={{ color: '#9A8A74', fontSize: '11px', fontWeight: 700, letterSpacing: '0.5px', fontFamily: 'Manrope, sans-serif', textTransform: 'uppercase' }}>
                 {h}
               </span>
             ))}
           </div>
 
+          {/* Loading skeleton */}
+          {loading && (
+            <div className="flex items-center justify-center py-16">
+              <p style={{ color: '#9A8A74', fontFamily: 'Manrope, sans-serif', fontSize: '13px' }}>
+                Chargement des produits…
+              </p>
+            </div>
+          )}
+
           {/* Rows */}
-          <AnimatePresence>
-            {filtered.map((product, i) => {
-              const isStatic = isStaticProduct(product.id);
-              const stockLow  = (product.stock ?? 99) <= 3;
-              return (
-                <motion.div
-                  key={product.id}
-                  initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                  className="grid grid-cols-[60px_1fr_130px_110px_80px_90px_100px] px-5 py-4 items-center"
-                  style={{
-                    borderBottom: i < filtered.length - 1 ? '1px solid #2A2218' : 'none',
-                    background: i % 2 === 0 ? '#1A1410' : '#1E1A12',
-                  }}
-                >
-                  {/* Image */}
-                  <div className="w-12 h-12 rounded-xl overflow-hidden flex-shrink-0"
-                    style={{ border: '1px solid #3A2E1E' }}>
-                    <img src={product.image} alt={product.name}
-                      className="w-full h-full object-cover" />
-                  </div>
-
-                  {/* Name + collection */}
-                  <div className="pr-4">
-                    <p style={{ color: '#F5EFE0', fontSize: '13px', fontWeight: 700, fontFamily: 'Manrope, sans-serif' }}>
-                      {product.name}
-                    </p>
-                    <p style={{ color: '#9A8A74', fontSize: '11px', fontFamily: 'Manrope, sans-serif' }}>
-                      {product.collection}
-                    </p>
-                    <div className="flex gap-1 mt-1 flex-wrap">
-                      {product.isNew && <span style={{ background: 'rgba(201,162,39,0.15)', color: '#C9A227', fontSize: '9px', fontWeight: 700, padding: '1px 6px', borderRadius: '4px' }}>NOUVEAU</span>}
-                      {product.isBestseller && <span style={{ background: 'rgba(34,197,94,0.12)', color: '#22c55e', fontSize: '9px', fontWeight: 700, padding: '1px 6px', borderRadius: '4px' }}>BESTSELLER</span>}
+          {!loading && (
+            <AnimatePresence>
+              {filtered.map((product, i) => {
+                const stockLow = product.stock !== null && product.stock <= 3;
+                return (
+                  <motion.div
+                    key={product.id}
+                    initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                    className="grid grid-cols-[60px_1fr_120px_110px_70px_130px_90px] px-5 py-4 items-center"
+                    style={{
+                      borderBottom: i < filtered.length - 1 ? '1px solid #2A2218' : 'none',
+                      background: i % 2 === 0 ? '#1A1410' : '#1E1A12',
+                    }}
+                  >
+                    {/* Image */}
+                    <div className="w-12 h-12 rounded-xl overflow-hidden flex-shrink-0"
+                      style={{ border: '1px solid #3A2E1E' }}>
+                      <img src={product.image} alt={product.name}
+                        className="w-full h-full object-cover" />
                     </div>
-                  </div>
 
-                  {/* Category */}
-                  <span style={{ color: '#9A8A74', fontSize: '12px', fontFamily: 'Manrope, sans-serif', textTransform: 'capitalize' }}>
-                    {product.category}
-                  </span>
+                    {/* Name + collection */}
+                    <div className="pr-4">
+                      <p style={{ color: '#F5EFE0', fontSize: '13px', fontWeight: 700, fontFamily: 'Manrope, sans-serif' }}>
+                        {product.name}
+                      </p>
+                      <p style={{ color: '#9A8A74', fontSize: '11px', fontFamily: 'Manrope, sans-serif' }}>
+                        {product.collection}
+                      </p>
+                    </div>
 
-                  {/* Price */}
-                  <span style={{ color: '#C9A227', fontSize: '13px', fontWeight: 700, fontFamily: 'Manrope, sans-serif' }}>
-                    {formatPrice(product.price)}
-                  </span>
+                    {/* Category */}
+                    <span style={{ color: '#9A8A74', fontSize: '12px', fontFamily: 'Manrope, sans-serif', textTransform: 'capitalize' }}>
+                      {product.category}
+                    </span>
 
-                  {/* Stock */}
-                  <span style={{ color: stockLow ? '#ef4444' : '#F5EFE0', fontSize: '13px', fontWeight: stockLow ? 700 : 500, fontFamily: 'Manrope, sans-serif' }}>
-                    {product.stock ?? '∞'}
-                  </span>
+                    {/* Price */}
+                    <span style={{ color: '#C9A227', fontSize: '13px', fontWeight: 700, fontFamily: 'Manrope, sans-serif' }}>
+                      {formatPrice(product.price)}
+                    </span>
 
-                  {/* Status */}
-                  <span style={{
-                    fontSize: '10px', fontWeight: 700, padding: '3px 8px', borderRadius: '6px',
-                    background: isStatic ? 'rgba(148,163,184,0.1)' : 'rgba(201,162,39,0.12)',
-                    color: isStatic ? '#94a3b8' : '#C9A227',
-                    fontFamily: 'Manrope, sans-serif',
-                  }}>
-                    {isStatic ? 'STATIQUE' : 'CUSTOM'}
-                  </span>
+                    {/* Stock */}
+                    <span style={{ color: stockLow ? '#ef4444' : '#F5EFE0', fontSize: '13px', fontWeight: stockLow ? 700 : 500, fontFamily: 'Manrope, sans-serif' }}>
+                      {product.stock === null ? '∞' : product.stock}
+                    </span>
 
-                  {/* Actions */}
-                  <div className="flex items-center gap-2">
-                    <motion.button
-                      whileTap={{ scale: 0.88 }}
-                      onClick={() => navigate(`/admin/products/${product.id}/edit`)}
-                      className="w-8 h-8 rounded-lg flex items-center justify-center"
-                      style={{ background: 'rgba(201,162,39,0.1)', border: '1px solid rgba(201,162,39,0.2)', cursor: 'pointer' }}>
-                      <Pencil size={13} color="#C9A227" />
-                    </motion.button>
-                    <motion.button
-                      whileTap={{ scale: 0.88 }}
-                      onClick={() => setConfirmDelete(product.id)}
-                      className="w-8 h-8 rounded-lg flex items-center justify-center"
-                      style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.15)', cursor: 'pointer' }}>
-                      <Trash2 size={13} color="#ef4444" />
-                    </motion.button>
-                  </div>
-                </motion.div>
-              );
-            })}
-          </AnimatePresence>
+                    {/* Badges — quick toggle */}
+                    <div className="flex items-center gap-1">
+                      {([
+                        { field: 'isNew' as const, icon: Sparkles, color: '#C9A227', title: 'Nouveau' },
+                        { field: 'isBestseller' as const, icon: Star, color: '#22c55e', title: 'Bestseller' },
+                        { field: 'isFeatured' as const, icon: Zap, color: '#a78bfa', title: 'En vedette' },
+                      ]).map(({ field, icon: Icon, color, title }) => {
+                        const active = product[field];
+                        const key = `${product.id}-${field}`;
+                        return (
+                          <motion.button
+                            key={field}
+                            whileTap={{ scale: 0.82 }}
+                            title={title}
+                            disabled={toggling === key}
+                            onClick={() => handleToggle(product, field)}
+                            className="w-7 h-7 rounded-lg flex items-center justify-center"
+                            style={{
+                              background: active ? `${color}20` : 'transparent',
+                              border: `1px solid ${active ? color : '#3A2E1E'}`,
+                              cursor: toggling === key ? 'wait' : 'pointer',
+                              opacity: toggling === key ? 0.5 : 1,
+                            }}>
+                            <Icon size={11} color={active ? color : '#5A4E3E'} />
+                          </motion.button>
+                        );
+                      })}
+                    </div>
 
-          {filtered.length === 0 && (
+                    {/* Actions */}
+                    <div className="flex items-center gap-2">
+                      <motion.button
+                        whileTap={{ scale: 0.88 }}
+                        onClick={() => navigate(`/admin/products/${product.id}/edit`)}
+                        className="w-8 h-8 rounded-lg flex items-center justify-center"
+                        style={{ background: 'rgba(201,162,39,0.1)', border: '1px solid rgba(201,162,39,0.2)', cursor: 'pointer' }}>
+                        <Pencil size={13} color="#C9A227" />
+                      </motion.button>
+                      <motion.button
+                        whileTap={{ scale: 0.88 }}
+                        onClick={() => setConfirmDelete(product.id)}
+                        className="w-8 h-8 rounded-lg flex items-center justify-center"
+                        style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.15)', cursor: 'pointer' }}>
+                        <Trash2 size={13} color="#ef4444" />
+                      </motion.button>
+                    </div>
+                  </motion.div>
+                );
+              })}
+            </AnimatePresence>
+          )}
+
+          {!loading && filtered.length === 0 && (
             <div className="flex flex-col items-center justify-center py-16">
               <Package size={40} color="#3A2E1E" />
               <p style={{ color: '#9A8A74', marginTop: '12px', fontFamily: 'Manrope, sans-serif', fontSize: '13px' }}>
@@ -223,9 +294,7 @@ export default function AdminProducts() {
                 Supprimer le produit ?
               </h3>
               <p style={{ color: '#9A8A74', fontSize: '13px', textAlign: 'center', marginBottom: '24px', fontFamily: 'Manrope, sans-serif' }}>
-                {isStaticProduct(confirmDelete)
-                  ? 'Ce produit sera masqué du catalogue (vous pourrez le réactiver).'
-                  : 'Ce produit sera définitivement supprimé.'}
+                Ce produit sera définitivement supprimé de la base de données.
               </p>
               <div className="flex gap-3">
                 <button onClick={() => setConfirmDelete(null)}

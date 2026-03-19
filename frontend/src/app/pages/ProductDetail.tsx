@@ -8,6 +8,7 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { formatPrice, IMAGES, Product } from '../data/products';
 import { useApp, useColors, useProducts } from '../context/AppContext';
+import { ReassuranceBannerMobile } from '../components/ReassuranceBanner';
 import { toast } from 'sonner';
 import { trackEvent } from '../lib/analytics';
 
@@ -118,6 +119,8 @@ export default function ProductDetail() {
 
   return (
     <div style={{ background: BG, minHeight: '100vh', fontFamily: 'Manrope, sans-serif' }}>
+
+      <ReassuranceBannerMobile />
 
       {/* ══ DESKTOP: 2-col layout ══ */}
       <div className="lg:max-w-[1400px] lg:mx-auto lg:px-10 xl:px-16 lg:pt-8 lg:pb-16 lg:flex lg:gap-12">

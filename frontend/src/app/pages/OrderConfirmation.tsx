@@ -1,9 +1,11 @@
+import { useState } from 'react';
 import { useNavigate } from 'react-router';
-import { MessageCircle, Package, Headphones, ArrowRight, Calendar, Clock, UserPlus } from 'lucide-react';
-import { motion } from 'motion/react';
+import { MessageCircle, Headphones, ArrowRight, Calendar, Clock, UserPlus, Search, Mail, AlertCircle } from 'lucide-react';
+import { motion, AnimatePresence } from 'motion/react';
 import { useApp } from '../context/AppContext';
 import { useColors } from '../context/AppContext';
-import { openWhatsApp, WA_NUMBER } from '../utils/whatsapp';
+import { openWhatsApp } from '../utils/whatsapp';
+import { apiUrl } from '../lib/api';
 import { IMAGES } from '../data/products';
 
 export default function OrderConfirmation() {
@@ -11,7 +13,49 @@ export default function OrderConfirmation() {
   const { lastOrderId, isLoggedIn } = useApp();
   const { BG, CARD_BG, BORDER, TEXT, MUTED, GOLD } = useColors();
 
-  const orderId = lastOrderId || `MN-${Math.floor(10000 + Math.random() * 90000)}`;
+  const orderId = lastOrderId || '';
+
+  // ── Guest order lookup ──
+  const [showLookup, setShowLookup] = useState(false);
+  const [lookupRef, setLookupRef] = useState(orderId);
+  const [lookupEmail, setLookupEmail] = useState('');
+  const [lookupLoading, setLookupLoading] = useState(false);
+  const [lookupResult, setLookupResult] = useState<{ status: string; customerName: string } | null>(null);
+  const [lookupError, setLookupError] = useState('');
+
+  const handleLookup = async () => {
+    if (!lookupRef.trim() || !lookupEmail.trim()) {
+      setLookupError('Référence et email requis');
+      return;
+    }
+    setLookupLoading(true);
+    setLookupError('');
+    setLookupResult(null);
+    try {
+      const res = await fetch(
+        apiUrl(`/api/orders/lookup?ref=${encodeURIComponent(lookupRef.toUpperCase())}&email=${encodeURIComponent(lookupEmail.toLowerCase())}`)
+      );
+      if (!res.ok) {
+        setLookupError('Commande introuvable. Vérifiez la référence et l\'email utilisés lors de la commande.');
+        return;
+      }
+      const data = await res.json();
+      setLookupResult({ status: data.status, customerName: data.customerName });
+    } catch {
+      setLookupError('Erreur réseau, réessayez dans un instant.');
+    } finally {
+      setLookupLoading(false);
+    }
+  };
+
+  const STATUS_LABELS: Record<string, string> = {
+    PENDING_WHATSAPP: '⏳ En attente de confirmation',
+    CONFIRMED: '✅ Confirmée',
+    PAID: '💳 Payée',
+    SHIPPED: '🚚 Expédiée',
+    DELIVERED: '🎁 Livrée',
+    CANCELLED: '❌ Annulée',
+  };
 
   const reopenWhatsApp = () => {
     const msg = `👋 Bonjour Maison Marnoa,\n\nJe reviens concernant ma commande *#${orderId}*.\nPourriez-vous me confirmer sa prise en charge ? Merci 🙏`;
@@ -142,6 +186,82 @@ export default function OrderConfirmation() {
               <p style={{ color: MUTED, fontWeight: 700, fontSize: '9px', letterSpacing: '1px', textTransform: 'uppercase', marginBottom: '4px' }}>Support client</p>
               <p style={{ color: TEXT, fontWeight: 600, fontSize: '13px' }}>7j/7 · WhatsApp</p>
             </div>
+          </div>
+
+          {/* ── Guest lookup block ── */}
+          <div className="rounded-2xl mb-4 overflow-hidden" style={{ background: CARD_BG, border: `1px solid ${BORDER}` }}>
+            <button
+              className="w-full flex items-center justify-between px-5 py-4"
+              onClick={() => setShowLookup(v => !v)}
+            >
+              <div className="flex items-center gap-2">
+                <Search size={14} color={GOLD} />
+                <span style={{ color: TEXT, fontWeight: 700, fontSize: '13px' }}>Retrouver ma commande</span>
+              </div>
+              <span style={{ color: MUTED, fontSize: '11px' }}>{showLookup ? 'Fermer ↑' : 'Ouvrir ↓'}</span>
+            </button>
+
+            <AnimatePresence>
+              {showLookup && (
+                <motion.div
+                  initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }}
+                  exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.22 }}
+                  style={{ overflow: 'hidden', borderTop: `1px solid ${BORDER}` }}
+                >
+                  <div className="px-5 py-4 flex flex-col gap-3">
+                    <p style={{ color: MUTED, fontSize: '11px', lineHeight: 1.6 }}>
+                      Entrez la référence de commande et l'email utilisé lors de la commande.
+                    </p>
+                    <div className="flex items-center gap-2 px-4 py-3 rounded-xl" style={{ background: CARD_BG, border: `1px solid ${BORDER}` }}>
+                      <Search size={13} color={MUTED} />
+                      <input
+                        type="text" placeholder="MN-12345"
+                        value={lookupRef}
+                        onChange={e => setLookupRef(e.target.value)}
+                        className="flex-1 bg-transparent outline-none"
+                        style={{ color: TEXT, fontFamily: 'Manrope, sans-serif', fontSize: '13px' }}
+                      />
+                    </div>
+                    <div className="flex items-center gap-2 px-4 py-3 rounded-xl" style={{ background: CARD_BG, border: `1px solid ${BORDER}` }}>
+                      <Mail size={13} color={MUTED} />
+                      <input
+                        type="email" placeholder="votre@email.com"
+                        value={lookupEmail}
+                        onChange={e => setLookupEmail(e.target.value)}
+                        className="flex-1 bg-transparent outline-none"
+                        style={{ color: TEXT, fontFamily: 'Manrope, sans-serif', fontSize: '13px' }}
+                      />
+                    </div>
+                    {lookupError && (
+                      <div className="flex items-start gap-2">
+                        <AlertCircle size={12} color="#ef4444" className="mt-0.5 flex-shrink-0" />
+                        <p style={{ color: '#ef4444', fontSize: '11px' }}>{lookupError}</p>
+                      </div>
+                    )}
+                    {lookupResult && (
+                      <div className="px-4 py-3 rounded-xl" style={{ background: 'rgba(201,162,39,0.06)', border: `1px solid rgba(201,162,39,0.2)` }}>
+                        <p style={{ color: TEXT, fontWeight: 700, fontSize: '12px', marginBottom: '2px' }}>
+                          Bonjour {lookupResult.customerName} !
+                        </p>
+                        <p style={{ color: GOLD, fontWeight: 600, fontSize: '12px' }}>
+                          {STATUS_LABELS[lookupResult.status] ?? lookupResult.status}
+                        </p>
+                      </div>
+                    )}
+                    <motion.button
+                      onClick={handleLookup}
+                      disabled={lookupLoading}
+                      whileTap={{ scale: 0.97 }}
+                      className="w-full py-3 rounded-xl flex items-center justify-center gap-2"
+                      style={{ background: GOLD, color: '#fff', fontWeight: 700, fontSize: '13px', opacity: lookupLoading ? 0.6 : 1 }}
+                    >
+                      {lookupLoading ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <Search size={14} />}
+                      {lookupLoading ? 'Recherche…' : 'Vérifier ma commande'}
+                    </motion.button>
+                  </div>
+                </motion.div>
+              )}
+            </AnimatePresence>
           </div>
 
           {/* CTA buttons */}

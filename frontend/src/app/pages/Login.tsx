@@ -80,26 +80,40 @@ export default function Login() {
       const res = await fetch(apiUrl(endpoint), {
         method: 'POST',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify(payload),
       });
 
-      if (!res.ok) {
-        throw new Error('Auth endpoint rejected the request');
-      }
-    } catch {
-      toast('Auth backend indisponible', {
-        description: 'Connexion locale utilisée temporairement.',
-        duration: 2200,
-      });
-    }
+      const data = await res.json().catch(() => ({})) as Record<string, unknown>;
 
-    login({
-      name: form.name || form.email.split('@')[0] || 'Client Maison Marnoa',
-      email: form.email,
-      phone: form.phone || undefined,
-      role: 'client',
-    });
-    navigate('/profile');
+      if (!res.ok) {
+        const msg = (data.message as string) || (data.error as string) || '';
+        if (res.status === 422 || msg.toLowerCase().includes('exist')) {
+          setErrors({ email: 'Un compte existe déjà avec cet email.' });
+        } else if (res.status === 401 || msg.toLowerCase().includes('password') || msg.toLowerCase().includes('invalid')) {
+          setErrors({ password: 'Email ou mot de passe incorrect.' });
+        } else {
+          setErrors({ email: msg || 'Erreur d\'authentification.' });
+        }
+        return;
+      }
+
+      // Use the real user returned by Better Auth
+      const user = (data.user ?? data) as { id?: string; name?: string; email?: string; phone?: string; role?: string };
+      login({
+        id: user.id ? String(user.id) : undefined,
+        name: user.name || form.name || form.email.split('@')[0],
+        email: user.email || form.email,
+        phone: (user.phone as string | undefined) || form.phone || undefined,
+        role: user.role === 'admin' ? 'admin' : 'client',
+      });
+      toast(mode === 'register' ? '🎉 Compte créé !' : '✅ Connexion réussie !', { duration: 2000 });
+      navigate(searchParams.get('redirect') || '/profile');
+    } catch {
+      toast.error('Serveur inaccessible', { description: 'Vérifiez votre connexion et réessayez.' });
+    } finally {
+      setLoading(false);
+    }
   };
 
   // ── OTP: send code ──

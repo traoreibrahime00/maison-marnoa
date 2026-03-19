@@ -1,25 +1,44 @@
-import { useEffect } from 'react';
+import { useEffect, useState } from 'react';
 import { Outlet, useNavigate, useLocation, Link } from 'react-router';
 import { motion } from 'motion/react';
 import { LayoutGrid, LogOut, Plus, Home, Package, ShoppingCart, CreditCard, BarChart3, Settings } from 'lucide-react';
 import { MaisonMarnoaLogo } from '../../components/MaisonMarnoaLogo';
-
-const ADMIN_KEY = 'mn_admin_session';
+import { apiUrl } from '../../lib/api';
 
 export default function AdminLayout() {
   const navigate = useNavigate();
   const location = useLocation();
+  const [checking, setChecking] = useState(true);
 
   useEffect(() => {
-    if (localStorage.getItem(ADMIN_KEY) !== 'true') {
-      navigate('/admin', { replace: true });
-    }
+    const verifyAdmin = async () => {
+      try {
+        const res = await fetch(apiUrl('/api/auth/get-session'), { credentials: 'include' });
+        const data = await res.json() as { user?: { role?: string } };
+        if (data?.user?.role !== 'admin') {
+          navigate('/admin', { replace: true });
+        }
+      } catch {
+        navigate('/admin', { replace: true });
+      } finally {
+        setChecking(false);
+      }
+    };
+    verifyAdmin();
   }, [navigate]);
 
-  const logout = () => {
-    localStorage.removeItem(ADMIN_KEY);
+  const logout = async () => {
+    await fetch(apiUrl('/api/auth/sign-out'), { method: 'POST', credentials: 'include' }).catch(() => {});
     navigate('/admin');
   };
+
+  if (checking) {
+    return (
+      <div className="min-h-screen flex items-center justify-center" style={{ background: '#120F0A' }}>
+        <div className="w-6 h-6 border-2 border-yellow-600/30 border-t-yellow-500 rounded-full animate-spin" />
+      </div>
+    );
+  }
 
   const nav = [
     { path: '/admin/dashboard', icon: BarChart3,  label: 'Dashboard' },

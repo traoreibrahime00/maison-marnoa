@@ -17,7 +17,7 @@ const NAV_RIGHT = [
 export function DesktopHeader() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { cartCount, wishlist, darkMode, toggleDarkMode } = useApp();
+  const { cartCount, wishlist, darkMode, toggleDarkMode, isLoggedIn, currentUser } = useApp();
   const { BG, CARD_BG, BORDER, MUTED, GOLD } = useColors();
   const [scrolled, setScrolled] = useState(false);
   const [hoveredIcon, setHoveredIcon] = useState<string | null>(null);
@@ -64,7 +64,6 @@ export function DesktopHeader() {
     { icon: Search,      path: '/search',   badge: 0,              label: 'Recherche' },
     { icon: Heart,       path: '/wishlist',  badge: wishlist.length, label: 'Favoris' },
     { icon: ShoppingBag, path: '/cart',      badge: cartCount,      label: 'Panier' },
-    { icon: User,        path: '/profile',   badge: 0,              label: 'Profil' },
   ];
 
   return (
@@ -187,6 +186,67 @@ export function DesktopHeader() {
               </AnimatePresence>
             </div>
           ))}
+
+          {/* Profile / Account icon */}
+          <div
+            className="relative"
+            onMouseEnter={() => setHoveredIcon('/profile')}
+            onMouseLeave={() => setHoveredIcon(null)}
+          >
+            <motion.button
+              onClick={() => navigate('/profile')}
+              whileTap={{ scale: 0.88 }}
+              whileHover={{ scale: 1.08 }}
+              transition={{ type: 'spring', stiffness: 400, damping: 18 }}
+              className="relative flex items-center justify-center rounded-full overflow-hidden"
+              style={{
+                width: scrolled ? '34px' : '36px',
+                height: scrolled ? '34px' : '36px',
+                background: isLoggedIn
+                  ? 'linear-gradient(135deg,#2A2010,#1C1508)'
+                  : (isActive('/profile') ? 'rgba(201,162,39,0.12)' : CARD_BG),
+                border: `1px solid ${isLoggedIn ? 'rgba(201,162,39,0.5)' : (isActive('/profile') ? 'rgba(201,162,39,0.35)' : BORDER)}`,
+                cursor: 'pointer',
+                boxShadow: isLoggedIn
+                  ? '0 0 0 2px rgba(201,162,39,0.2)'
+                  : (isActive('/profile') ? '0 0 12px rgba(201,162,39,0.18)' : '0 1px 4px rgba(0,0,0,0.06)'),
+                transition: 'width 0.3s, height 0.3s',
+              }}
+            >
+              {isLoggedIn ? (
+                currentUser?.image
+                  ? <img src={currentUser.image} alt="avatar" className="w-full h-full object-cover" />
+                  : <span style={{ color: GOLD, fontWeight: 800, fontSize: '13px', lineHeight: 1, fontFamily: 'Manrope, sans-serif', userSelect: 'none' }}>
+                      {(currentUser?.name || '?').charAt(0).toUpperCase()}
+                    </span>
+              ) : (
+                <User size={15} color={isActive('/profile') ? GOLD : MUTED} />
+              )}
+            </motion.button>
+
+            <AnimatePresence>
+              {hoveredIcon === '/profile' && (
+                <motion.div
+                  initial={{ opacity: 0, y: 4, scale: 0.9 }}
+                  animate={{ opacity: 1, y: 0, scale: 1 }}
+                  exit={{ opacity: 0, y: 4, scale: 0.9 }}
+                  transition={{ duration: 0.15, ease: 'easeOut' }}
+                  className="absolute top-full left-1/2 -translate-x-1/2 mt-2 px-2.5 py-1 rounded-lg whitespace-nowrap pointer-events-none z-50"
+                  style={{
+                    background: darkMode ? '#231E15' : '#1C1510',
+                    color: '#F5EFE0',
+                    fontSize: '11px',
+                    fontWeight: 600,
+                    fontFamily: 'Manrope, sans-serif',
+                    boxShadow: '0 4px 12px rgba(0,0,0,0.2)',
+                  }}
+                >
+                  {isLoggedIn ? (currentUser?.name?.split(' ')[0] || 'Profil') : 'Profil'}
+                  <div style={{ position: 'absolute', top: -4, left: '50%', transform: 'translateX(-50%)', width: 8, height: 8, background: darkMode ? '#231E15' : '#1C1510', clipPath: 'polygon(50% 0%, 0% 100%, 100% 100%)' }} />
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
 
           <motion.button
             onClick={toggleDarkMode}

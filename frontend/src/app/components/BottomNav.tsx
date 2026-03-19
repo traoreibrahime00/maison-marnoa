@@ -16,7 +16,7 @@ const tabs = [
 export function BottomNav() {
   const navigate = useNavigate();
   const location = useLocation();
-  const { cartCount, wishlist } = useApp();
+  const { cartCount, wishlist, isLoggedIn, currentUser } = useApp();
   const { CARD_BG, BORDER, GOLD } = useColors();
 
   const isActive = (path: string) => {
@@ -58,11 +58,31 @@ export function BottomNav() {
                     transition={{ type: 'spring', stiffness: 400, damping: 30 }}
                   />
                 )}
-                <Icon
-                  size={22}
-                  strokeWidth={active ? 2.5 : 1.8}
-                  style={{ color: active ? GOLD : MUTED, position: 'relative' }}
-                />
+                {path === '/profile' && isLoggedIn ? (
+                  <div
+                    className="flex items-center justify-center rounded-full overflow-hidden"
+                    style={{
+                      width: 22, height: 22,
+                      background: 'linear-gradient(135deg,#2A2010,#1C1508)',
+                      border: `1.5px solid ${active ? GOLD : 'rgba(201,162,39,0.4)'}`,
+                      boxShadow: active ? `0 0 0 2px rgba(201,162,39,0.2)` : 'none',
+                      position: 'relative',
+                    }}
+                  >
+                    {currentUser?.image
+                      ? <img src={currentUser.image} alt="avatar" className="w-full h-full object-cover" />
+                      : <span style={{ color: GOLD, fontWeight: 800, fontSize: '9px', lineHeight: 1, fontFamily: 'Manrope, sans-serif', userSelect: 'none' }}>
+                          {(currentUser?.name || '?').charAt(0).toUpperCase()}
+                        </span>
+                    }
+                  </div>
+                ) : (
+                  <Icon
+                    size={22}
+                    strokeWidth={active ? 2.5 : 1.8}
+                    style={{ color: active ? GOLD : MUTED, position: 'relative' }}
+                  />
+                )}
                 <AnimatePresence>
                   {(showBadge || showWishlistBadge) && (
                     <motion.span

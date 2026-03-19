@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { useNavigate } from 'react-router';
 import {
   ArrowLeft, Plus, Minus, Trash2, Tag, ShoppingBag, ArrowRight,
-  Truck, Gift, MessageSquare, Zap,
+  Truck, Gift, MessageSquare, Zap, X,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useApp, useColors } from '../context/AppContext';
@@ -17,7 +17,7 @@ const FREE_SHIPPING = 50000; // FCFA threshold for free Abidjan delivery
 export default function Cart() {
   const navigate = useNavigate();
   const {
-    cartItems, updateQuantity, removeFromCart, cartTotal,
+    cartItems, updateQuantity, removeFromCart, clearCart, cartTotal,
     isGiftWrap, setIsGiftWrap, giftMessage, setGiftMessage,
   } = useApp();
   const { BG, CARD_BG, BORDER, TEXT, MUTED, GOLD } = useColors();
@@ -69,6 +69,11 @@ export default function Cart() {
     toast(`${name} retiré du panier`, { duration: 2000 });
   };
 
+  const handleClearCart = () => {
+    clearCart();
+    toast('Panier vidé', { duration: 2000 });
+  };
+
   const handleWhatsAppCheckout = () => {
     if (cartItems.length === 0) {
       toast('Votre panier est vide', { duration: 2000 });
@@ -112,6 +117,16 @@ export default function Cart() {
             {cartItems.length === 0 ? 'Panier vide' : `${cartItems.reduce((s, i) => s + i.quantity, 0)} article${cartItems.length > 1 ? 's' : ''}`}
           </p>
         </div>
+        {cartItems.length > 0 && (
+          <motion.button
+            onClick={handleClearCart}
+            whileTap={{ scale: 0.88 }}
+            className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl"
+            style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', color: '#ef4444', fontSize: '11px', fontWeight: 600 }}
+          >
+            <X size={12} /> Vider
+          </motion.button>
+        )}
       </motion.div>
 
       {cartItems.length === 0 ? (
@@ -150,6 +165,14 @@ export default function Cart() {
             </motion.button>
             <div style={{ flex: 1, height: 1, background: BORDER }} />
             <h1 style={{ color: TEXT, fontWeight: 800, fontSize: '24px' }}>Mon Panier</h1>
+            <motion.button
+              onClick={handleClearCart}
+              whileTap={{ scale: 0.95 }}
+              className="flex items-center gap-1.5 px-3 py-1.5 rounded-xl"
+              style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)', color: '#ef4444', fontSize: '12px', fontWeight: 600 }}
+            >
+              <Trash2 size={13} /> Tout supprimer
+            </motion.button>
           </div>
 
           <div className="px-4 py-4 lg:px-0 lg:py-0 lg:grid lg:grid-cols-[1fr_380px] lg:gap-10 lg:items-start">

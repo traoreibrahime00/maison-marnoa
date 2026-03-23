@@ -4,6 +4,7 @@ import { motion, AnimatePresence } from 'motion/react';
 import { Pencil, Trash2, Plus, Search, Package, AlertTriangle, Star, Zap, Sparkles } from 'lucide-react';
 import { apiUrl } from '../../lib/api';
 import { categories, formatPrice } from '../../data/products';
+import { useColors } from '../../context/AppContext';
 
 type ApiProduct = {
   id: string;
@@ -20,6 +21,7 @@ type ApiProduct = {
 };
 
 export default function AdminProducts() {
+  const { BG, CARD_BG, BORDER, TEXT, MUTED, GOLD } = useColors();
   const navigate = useNavigate();
   const [products, setProducts] = useState<ApiProduct[]>([]);
   const [loading, setLoading] = useState(true);
@@ -84,13 +86,13 @@ export default function AdminProducts() {
       {/* Toolbar */}
       <div className="flex flex-wrap items-center gap-3 mb-6">
         <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl flex-1 min-w-48"
-          style={{ background: '#1E1A12', border: '1px solid #3A2E1E' }}>
-          <Search size={14} color="#9A8A74" />
+          style={{ background: CARD_BG, border: `1px solid ${BORDER}` }}>
+          <Search size={14} color={MUTED} />
           <input
             placeholder="Rechercher un produit…"
             value={search} onChange={e => setSearch(e.target.value)}
             className="bg-transparent outline-none flex-1"
-            style={{ color: '#F5EFE0', fontSize: '13px', fontFamily: 'Manrope, sans-serif' }}
+            style={{ color: TEXT, fontSize: '13px', fontFamily: 'Manrope, sans-serif' }}
           />
         </div>
 
@@ -100,9 +102,9 @@ export default function AdminProducts() {
               style={{
                 padding: '8px 14px', borderRadius: '12px', fontSize: '12px', fontWeight: 600,
                 fontFamily: 'Manrope, sans-serif', cursor: 'pointer',
-                background: filterCat === cat.id ? 'rgba(201,162,39,0.15)' : '#1E1A12',
-                border: `1px solid ${filterCat === cat.id ? 'rgba(201,162,39,0.4)' : '#3A2E1E'}`,
-                color: filterCat === cat.id ? '#C9A227' : '#9A8A74',
+                background: filterCat === cat.id ? 'rgba(201,162,39,0.15)' : CARD_BG,
+                border: `1px solid ${filterCat === cat.id ? 'rgba(201,162,39,0.4)' : BORDER}`,
+                color: filterCat === cat.id ? GOLD : MUTED,
               }}>
               {cat.label}
             </button>
@@ -118,12 +120,12 @@ export default function AdminProducts() {
           { label: 'Stock critique (≤3)', value: products.filter(p => p.stock !== null && p.stock <= 3).length, icon: AlertTriangle, warn: true },
         ].map(({ label, value, icon: Icon, warn }) => (
           <div key={label} className="rounded-2xl p-4"
-            style={{ background: '#1E1A12', border: `1px solid ${warn && value > 0 ? 'rgba(239,68,68,0.3)' : '#3A2E1E'}` }}>
+            style={{ background: CARD_BG, border: `1px solid ${warn && value > 0 ? 'rgba(239,68,68,0.3)' : BORDER}` }}>
             <div className="flex items-center gap-2 mb-2">
-              <Icon size={14} color={warn && value > 0 ? '#ef4444' : '#9A8A74'} />
-              <span style={{ color: '#9A8A74', fontSize: '11px', fontFamily: 'Manrope, sans-serif' }}>{label}</span>
+              <Icon size={14} color={warn && value > 0 ? '#ef4444' : MUTED} />
+              <span style={{ color: MUTED, fontSize: '11px', fontFamily: 'Manrope, sans-serif' }}>{label}</span>
             </div>
-            <p style={{ color: warn && value > 0 ? '#ef4444' : '#F5EFE0', fontSize: '24px', fontWeight: 800, fontFamily: 'Manrope, sans-serif' }}>
+            <p style={{ color: warn && value > 0 ? '#ef4444' : TEXT, fontSize: '24px', fontWeight: 800, fontFamily: 'Manrope, sans-serif' }}>
               {value}
             </p>
           </div>
@@ -131,13 +133,13 @@ export default function AdminProducts() {
       </div>
 
       {/* Product Table */}
-      <div className="rounded-2xl overflow-hidden" style={{ border: '1px solid #3A2E1E' }}>
+      <div className="rounded-2xl overflow-hidden" style={{ border: `1px solid ${BORDER}` }}>
         <div className="grid gap-0">
           {/* Header */}
           <div className="grid grid-cols-[60px_1fr_120px_110px_70px_130px_90px] px-5 py-3"
-            style={{ background: '#1E1A12', borderBottom: '1px solid #3A2E1E' }}>
+            style={{ background: CARD_BG, borderBottom: `1px solid ${BORDER}` }}>
             {['Photo', 'Produit', 'Catégorie', 'Prix', 'Stock', 'Badges', 'Actions'].map(h => (
-              <span key={h} style={{ color: '#9A8A74', fontSize: '11px', fontWeight: 700, letterSpacing: '0.5px', fontFamily: 'Manrope, sans-serif', textTransform: 'uppercase' }}>
+              <span key={h} style={{ color: MUTED, fontSize: '11px', fontWeight: 700, letterSpacing: '0.5px', fontFamily: 'Manrope, sans-serif', textTransform: 'uppercase' }}>
                 {h}
               </span>
             ))}
@@ -146,7 +148,7 @@ export default function AdminProducts() {
           {/* Loading skeleton */}
           {loading && (
             <div className="flex items-center justify-center py-16">
-              <p style={{ color: '#9A8A74', fontFamily: 'Manrope, sans-serif', fontSize: '13px' }}>
+              <p style={{ color: MUTED, fontFamily: 'Manrope, sans-serif', fontSize: '13px' }}>
                 Chargement des produits…
               </p>
             </div>
@@ -163,39 +165,39 @@ export default function AdminProducts() {
                     initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                     className="grid grid-cols-[60px_1fr_120px_110px_70px_130px_90px] px-5 py-4 items-center"
                     style={{
-                      borderBottom: i < filtered.length - 1 ? '1px solid #2A2218' : 'none',
-                      background: i % 2 === 0 ? '#1A1410' : '#1E1A12',
+                      borderBottom: i < filtered.length - 1 ? `1px solid ${BORDER}` : 'none',
+                      background: i % 2 === 0 ? BG : CARD_BG,
                     }}
                   >
                     {/* Image */}
                     <div className="w-12 h-12 rounded-xl overflow-hidden flex-shrink-0"
-                      style={{ border: '1px solid #3A2E1E' }}>
+                      style={{ border: `1px solid ${BORDER}` }}>
                       <img src={product.image} alt={product.name}
                         className="w-full h-full object-cover" />
                     </div>
 
                     {/* Name + collection */}
                     <div className="pr-4">
-                      <p style={{ color: '#F5EFE0', fontSize: '13px', fontWeight: 700, fontFamily: 'Manrope, sans-serif' }}>
+                      <p style={{ color: TEXT, fontSize: '13px', fontWeight: 700, fontFamily: 'Manrope, sans-serif' }}>
                         {product.name}
                       </p>
-                      <p style={{ color: '#9A8A74', fontSize: '11px', fontFamily: 'Manrope, sans-serif' }}>
+                      <p style={{ color: MUTED, fontSize: '11px', fontFamily: 'Manrope, sans-serif' }}>
                         {product.collection}
                       </p>
                     </div>
 
                     {/* Category */}
-                    <span style={{ color: '#9A8A74', fontSize: '12px', fontFamily: 'Manrope, sans-serif', textTransform: 'capitalize' }}>
+                    <span style={{ color: MUTED, fontSize: '12px', fontFamily: 'Manrope, sans-serif', textTransform: 'capitalize' }}>
                       {product.category}
                     </span>
 
                     {/* Price */}
-                    <span style={{ color: '#C9A227', fontSize: '13px', fontWeight: 700, fontFamily: 'Manrope, sans-serif' }}>
+                    <span style={{ color: GOLD, fontSize: '13px', fontWeight: 700, fontFamily: 'Manrope, sans-serif' }}>
                       {formatPrice(product.price)}
                     </span>
 
                     {/* Stock */}
-                    <span style={{ color: stockLow ? '#ef4444' : '#F5EFE0', fontSize: '13px', fontWeight: stockLow ? 700 : 500, fontFamily: 'Manrope, sans-serif' }}>
+                    <span style={{ color: stockLow ? '#ef4444' : TEXT, fontSize: '13px', fontWeight: stockLow ? 700 : 500, fontFamily: 'Manrope, sans-serif' }}>
                       {product.stock === null ? '∞' : product.stock}
                     </span>
 
@@ -218,11 +220,11 @@ export default function AdminProducts() {
                             className="w-7 h-7 rounded-lg flex items-center justify-center"
                             style={{
                               background: active ? `${color}20` : 'transparent',
-                              border: `1px solid ${active ? color : '#3A2E1E'}`,
+                              border: `1px solid ${active ? color : BORDER}`,
                               cursor: toggling === key ? 'wait' : 'pointer',
                               opacity: toggling === key ? 0.5 : 1,
                             }}>
-                            <Icon size={11} color={active ? color : '#5A4E3E'} />
+                            <Icon size={11} color={active ? color : MUTED} />
                           </motion.button>
                         );
                       })}
@@ -253,8 +255,8 @@ export default function AdminProducts() {
 
           {!loading && filtered.length === 0 && (
             <div className="flex flex-col items-center justify-center py-16">
-              <Package size={40} color="#3A2E1E" />
-              <p style={{ color: '#9A8A74', marginTop: '12px', fontFamily: 'Manrope, sans-serif', fontSize: '13px' }}>
+              <Package size={40} color={BORDER} />
+              <p style={{ color: MUTED, marginTop: '12px', fontFamily: 'Manrope, sans-serif', fontSize: '13px' }}>
                 Aucun produit trouvé
               </p>
             </div>
@@ -283,26 +285,26 @@ export default function AdminProducts() {
             <motion.div
               initial={{ scale: 0.9 }} animate={{ scale: 1 }} exit={{ scale: 0.9 }}
               className="rounded-3xl p-8 max-w-sm w-full"
-              style={{ background: '#1E1A12', border: '1px solid #3A2E1E' }}
+              style={{ background: CARD_BG, border: `1px solid ${BORDER}` }}
               onClick={e => e.stopPropagation()}
             >
               <div className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-4"
                 style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)' }}>
                 <Trash2 size={22} color="#ef4444" />
               </div>
-              <h3 style={{ color: '#F5EFE0', fontWeight: 800, fontSize: '18px', textAlign: 'center', marginBottom: '8px', fontFamily: 'Manrope, sans-serif' }}>
+              <h3 style={{ color: TEXT, fontWeight: 800, fontSize: '18px', textAlign: 'center', marginBottom: '8px', fontFamily: 'Manrope, sans-serif' }}>
                 Supprimer le produit ?
               </h3>
-              <p style={{ color: '#9A8A74', fontSize: '13px', textAlign: 'center', marginBottom: '24px', fontFamily: 'Manrope, sans-serif' }}>
+              <p style={{ color: MUTED, fontSize: '13px', textAlign: 'center', marginBottom: '24px', fontFamily: 'Manrope, sans-serif' }}>
                 Ce produit sera définitivement supprimé de la base de données.
               </p>
               <div className="flex gap-3">
                 <button onClick={() => setConfirmDelete(null)}
-                  style={{ flex: 1, padding: '12px', borderRadius: '14px', background: '#2A2218', border: '1px solid #3A2E1E', color: '#9A8A74', fontWeight: 600, fontSize: '13px', fontFamily: 'Manrope, sans-serif', cursor: 'pointer' }}>
+                  style={{ flex: 1, padding: '12px', borderRadius: '14px', background: BG, border: `1px solid ${BORDER}`, color: MUTED, fontWeight: 600, fontSize: '13px', fontFamily: 'Manrope, sans-serif', cursor: 'pointer' }}>
                   Annuler
                 </button>
                 <button onClick={() => handleDelete(confirmDelete)} disabled={isDeleting}
-                  style={{ flex: 1, padding: '12px', borderRadius: '14px', background: isDeleting ? '#3A2E1E' : '#ef4444', border: 'none', color: isDeleting ? '#9A8A74' : '#fff', fontWeight: 700, fontSize: '13px', fontFamily: 'Manrope, sans-serif', cursor: isDeleting ? 'not-allowed' : 'pointer' }}>
+                  style={{ flex: 1, padding: '12px', borderRadius: '14px', background: isDeleting ? BORDER : '#ef4444', border: 'none', color: isDeleting ? MUTED : '#fff', fontWeight: 700, fontSize: '13px', fontFamily: 'Manrope, sans-serif', cursor: isDeleting ? 'not-allowed' : 'pointer' }}>
                   {isDeleting ? 'Suppression...' : 'Supprimer'}
                 </button>
               </div>

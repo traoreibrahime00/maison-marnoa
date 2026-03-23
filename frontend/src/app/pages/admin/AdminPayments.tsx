@@ -1,6 +1,7 @@
 import { useEffect, useState } from 'react';
 import { formatPrice } from '../../data/products';
 import { apiUrl } from '../../lib/api';
+import { useColors } from '../../context/AppContext';
 
 type PaymentRow = {
   id: string;
@@ -20,6 +21,7 @@ type PaymentRow = {
 };
 
 export default function AdminPayments() {
+  const { BG, CARD_BG, BORDER, TEXT, MUTED } = useColors();
   const [rows, setRows] = useState<PaymentRow[]>([]);
   const [loading, setLoading] = useState(true);
 
@@ -57,33 +59,33 @@ export default function AdminPayments() {
   };
 
   return (
-    <div className="rounded-2xl overflow-hidden" style={{ border: '1px solid #3A2E1E' }}>
-      <div className="grid grid-cols-[1fr_120px_110px_140px_140px_170px_130px] px-4 py-3" style={{ background: '#1E1A12', borderBottom: '1px solid #3A2E1E' }}>
+    <div className="rounded-2xl overflow-hidden" style={{ border: `1px solid ${BORDER}` }}>
+      <div className="grid grid-cols-[1fr_120px_110px_140px_140px_170px_130px] px-4 py-3" style={{ background: CARD_BG, borderBottom: `1px solid ${BORDER}` }}>
         {['Commande', 'Méthode', 'Statut', 'Montant', 'Référence', 'Date', 'Action'].map(h => (
-          <span key={h} style={{ color: '#9A8A74', fontSize: '11px', fontWeight: 700, fontFamily: 'Manrope, sans-serif' }}>{h}</span>
+          <span key={h} style={{ color: MUTED, fontSize: '11px', fontWeight: 700, fontFamily: 'Manrope, sans-serif' }}>{h}</span>
         ))}
       </div>
 
       {loading ? (
-        <div className="px-4 py-6" style={{ color: '#9A8A74', fontFamily: 'Manrope, sans-serif' }}>Chargement des paiements…</div>
+        <div className="px-4 py-6" style={{ color: MUTED, fontFamily: 'Manrope, sans-serif' }}>Chargement des paiements…</div>
       ) : rows.length === 0 ? (
-        <div className="px-4 py-6" style={{ color: '#9A8A74', fontFamily: 'Manrope, sans-serif' }}>Aucun paiement.</div>
+        <div className="px-4 py-6" style={{ color: MUTED, fontFamily: 'Manrope, sans-serif' }}>Aucun paiement.</div>
       ) : (
         rows.map((payment, idx) => (
           <div
             key={payment.id}
             className="grid grid-cols-[1fr_120px_110px_140px_140px_170px_130px] px-4 py-3 items-center"
-            style={{ background: idx % 2 ? '#1A1410' : '#1E1A12', borderBottom: '1px solid #2A2218' }}
+            style={{ background: idx % 2 ? BG : CARD_BG, borderBottom: `1px solid ${BORDER}` }}
           >
             <div>
-              <p style={{ color: '#F5EFE0', fontSize: '12px', fontWeight: 700, fontFamily: 'Manrope, sans-serif' }}>{payment.order?.orderRef || '-'}</p>
-              <p style={{ color: '#9A8A74', fontSize: '10px', fontFamily: 'Manrope, sans-serif' }}>{payment.order?.customerName || '-'}</p>
+              <p style={{ color: TEXT, fontSize: '12px', fontWeight: 700, fontFamily: 'Manrope, sans-serif' }}>{payment.order?.orderRef || '-'}</p>
+              <p style={{ color: MUTED, fontSize: '10px', fontFamily: 'Manrope, sans-serif' }}>{payment.order?.customerName || '-'}</p>
             </div>
-            <span style={{ color: '#9A8A74', fontSize: '11px', fontFamily: 'Manrope, sans-serif' }}>{payment.method}</span>
-            <span style={{ color: payment.status === 'SUCCESS' ? '#22c55e' : '#9A8A74', fontSize: '11px', fontWeight: 700, fontFamily: 'Manrope, sans-serif' }}>{payment.status}</span>
-            <span style={{ color: '#F5EFE0', fontSize: '12px', fontWeight: 700, fontFamily: 'Manrope, sans-serif' }}>{formatPrice(payment.amount)}</span>
-            <span style={{ color: '#9A8A74', fontSize: '10px', fontFamily: 'Manrope, sans-serif' }}>{payment.externalRef}</span>
-            <span style={{ color: '#9A8A74', fontSize: '11px', fontFamily: 'Manrope, sans-serif' }}>{new Date(payment.createdAt).toLocaleString('fr-CI')}</span>
+            <span style={{ color: MUTED, fontSize: '11px', fontFamily: 'Manrope, sans-serif' }}>{payment.method}</span>
+            <span style={{ color: payment.status === 'SUCCESS' ? '#22c55e' : MUTED, fontSize: '11px', fontWeight: 700, fontFamily: 'Manrope, sans-serif' }}>{payment.status}</span>
+            <span style={{ color: TEXT, fontSize: '12px', fontWeight: 700, fontFamily: 'Manrope, sans-serif' }}>{formatPrice(payment.amount)}</span>
+            <span style={{ color: MUTED, fontSize: '10px', fontFamily: 'Manrope, sans-serif' }}>{payment.externalRef}</span>
+            <span style={{ color: MUTED, fontSize: '11px', fontFamily: 'Manrope, sans-serif' }}>{new Date(payment.createdAt).toLocaleString('fr-CI')}</span>
             <div>
               {payment.method === 'WAVE' && payment.status !== 'SUCCESS' ? (
                 <button
@@ -103,7 +105,7 @@ export default function AdminPayments() {
                   Marquer payé
                 </button>
               ) : (
-                <span style={{ color: '#9A8A74', fontSize: '10px', fontFamily: 'Manrope, sans-serif' }}>—</span>
+                <span style={{ color: MUTED, fontSize: '10px', fontFamily: 'Manrope, sans-serif' }}>—</span>
               )}
             </div>
           </div>

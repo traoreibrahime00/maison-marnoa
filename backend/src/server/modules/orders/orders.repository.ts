@@ -22,25 +22,16 @@ export const ordersRepository = {
 
   create(data: OrderCreateInput) {
     return prisma.$transaction(async tx => {
+      // Check stock availability at creation (but don't decrement yet — decrement happens on CONFIRMED)
       for (const line of data.lines) {
         if (!line.productId) continue;
-
         const product = await tx.product.findUnique({
           where: { id: line.productId },
           select: { id: true, stock: true },
         });
-
         if (!product) continue;
-
         if (product.stock !== null && product.stock < line.quantity) {
           throw new InsufficientStockError(product.id, line.quantity, product.stock);
-        }
-
-        if (product.stock !== null) {
-          await tx.product.update({
-            where: { id: product.id },
-            data: { stock: { decrement: line.quantity } },
-          });
         }
       }
 
@@ -117,10 +108,39 @@ export const ordersRepository = {
   },
 
   updateStatus(orderRef: string, status: OrderStatus) {
-    return prisma.order.update({
-      where: { orderRef },
-      data: { status },
-      include: { items: true, payments: true, receipt: true },
+    return prisma.$transaction(async tx => {
+      // Decrement stock when admin confirms the order
+      if (status === 'CONFIRMED') {
+        const order = await tx.order.findUnique({
+          where: { orderRef },
+          include: { items: true },
+        });
+        if (order) {
+          for (const item of order.items) {
+            if (!item.productId) continue;
+            const product = await tx.product.findUnique({
+              where: { id: item.productId },
+              select: { id: true, stock: true },
+            });
+            if (!product) continue;
+            if (product.stock !== null && product.stock < item.quantity) {
+              throw new InsufficientStockError(product.id, item.quantity, product.stock);
+            }
+            if (product.stock !== null) {
+              await tx.product.update({
+                where: { id: product.id },
+                data: { stock: { decrement: item.quantity } },
+              });
+            }
+          }
+        }
+      }
+
+      return tx.order.update({
+        where: { orderRef },
+        data: { status },
+        include: { items: true, payments: true, receipt: true },
+      });
     });
   },
 };

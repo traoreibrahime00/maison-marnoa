@@ -7,6 +7,7 @@ import {
 import { apiUrl } from '../../lib/api';
 import { uploadFilesToCloudinary, isCloudinaryConfigured, type UploadProgress } from '../../lib/cloudinary';
 import { ProductCategory, categories } from '../../data/products';
+import { useColors } from '../../context/AppContext';
 
 const METALS = ['Or Jaune 18K', 'Or Blanc 18K', 'Or Rose 18K', 'Or Jaune 14K', 'Or Blanc 14K', 'Argent 925', 'Platine', 'Acier inoxydable'];
 const COLLECTIONS = ['COLLECTION ROYALE', 'COLLECTION PRESTIGE', 'COLLECTION IVOIRE', 'COLLECTION MARIAGE', 'COLLECTION ESSENTIELLE', 'HAUTE HORLOGERIE'];
@@ -73,13 +74,14 @@ function productToForm(p: ApiProduct): FormData {
 /* ─── Sub-components ─────────────────────────────────────── */
 
 function Field({ label, children, hint }: { label: string; children: React.ReactNode; hint?: string }) {
+  const { MUTED } = useColors();
   return (
     <div>
-      <label style={{ color: '#9A8A74', fontSize: '11px', fontWeight: 700, letterSpacing: '0.8px', textTransform: 'uppercase', display: 'block', marginBottom: '6px', fontFamily: 'Manrope, sans-serif' }}>
+      <label style={{ color: MUTED, fontSize: '11px', fontWeight: 700, letterSpacing: '0.8px', textTransform: 'uppercase', display: 'block', marginBottom: '6px', fontFamily: 'Manrope, sans-serif' }}>
         {label}
       </label>
       {children}
-      {hint && <p style={{ color: '#5A4E3E', fontSize: '10px', marginTop: '4px', fontFamily: 'Manrope, sans-serif' }}>{hint}</p>}
+      {hint && <p style={{ color: MUTED, fontSize: '10px', marginTop: '4px', fontFamily: 'Manrope, sans-serif' }}>{hint}</p>}
     </div>
   );
 }
@@ -87,10 +89,11 @@ function Field({ label, children, hint }: { label: string; children: React.React
 function Input({ value, onChange, placeholder, type = 'text', style: s }: {
   value: string; onChange: (v: string) => void; placeholder?: string; type?: string; style?: React.CSSProperties;
 }) {
+  const { BG, BORDER, TEXT } = useColors();
   return (
     <input
       type={type} value={value} onChange={e => onChange(e.target.value)} placeholder={placeholder}
-      style={{ width: '100%', background: '#2A2218', border: '1px solid #3A2E1E', borderRadius: '12px', padding: '10px 14px', color: '#F5EFE0', fontSize: '13px', fontFamily: 'Manrope, sans-serif', outline: 'none', boxSizing: 'border-box', ...s }}
+      style={{ width: '100%', background: BG, border: `1px solid ${BORDER}`, borderRadius: '12px', padding: '10px 14px', color: TEXT, fontSize: '13px', fontFamily: 'Manrope, sans-serif', outline: 'none', boxSizing: 'border-box', ...s }}
     />
   );
 }
@@ -98,9 +101,10 @@ function Input({ value, onChange, placeholder, type = 'text', style: s }: {
 function Select({ value, onChange, children }: {
   value: string; onChange: (v: string) => void; children: React.ReactNode;
 }) {
+  const { BG, BORDER, TEXT } = useColors();
   return (
     <select value={value} onChange={e => onChange(e.target.value)}
-      style={{ width: '100%', background: '#2A2218', border: '1px solid #3A2E1E', borderRadius: '12px', padding: '10px 14px', color: '#F5EFE0', fontSize: '13px', fontFamily: 'Manrope, sans-serif', outline: 'none', cursor: 'pointer' }}>
+      style={{ width: '100%', background: BG, border: `1px solid ${BORDER}`, borderRadius: '12px', padding: '10px 14px', color: TEXT, fontSize: '13px', fontFamily: 'Manrope, sans-serif', outline: 'none', cursor: 'pointer' }}>
       {children}
     </select>
   );
@@ -108,20 +112,21 @@ function Select({ value, onChange, children }: {
 
 /* ─── Upload progress bar ────────────────────────────────── */
 function ProgressBar({ progress, label, error }: { progress: number; label: string; error?: string }) {
+  const { BORDER, MUTED, GOLD } = useColors();
   return (
     <div style={{ marginBottom: '6px' }}>
       <div className="flex justify-between mb-1">
-        <span style={{ color: '#9A8A74', fontSize: '10px', fontFamily: 'Manrope, sans-serif' }} className="truncate max-w-[70%]">
+        <span style={{ color: MUTED, fontSize: '10px', fontFamily: 'Manrope, sans-serif' }} className="truncate max-w-[70%]">
           {label}
         </span>
-        <span style={{ color: error ? '#ef4444' : '#C9A227', fontSize: '10px', fontFamily: 'Manrope, sans-serif' }}>
+        <span style={{ color: error ? '#ef4444' : GOLD, fontSize: '10px', fontFamily: 'Manrope, sans-serif' }}>
           {error ? 'Erreur' : `${progress}%`}
         </span>
       </div>
-      <div style={{ height: '3px', background: '#3A2E1E', borderRadius: '2px', overflow: 'hidden' }}>
+      <div style={{ height: '3px', background: BORDER, borderRadius: '2px', overflow: 'hidden' }}>
         <div style={{
           width: `${progress}%`, height: '100%', borderRadius: '2px',
-          background: error ? '#ef4444' : progress === 100 ? '#22c55e' : '#C9A227',
+          background: error ? '#ef4444' : progress === 100 ? '#22c55e' : GOLD,
           transition: 'width 0.2s ease',
         }} />
       </div>
@@ -131,6 +136,7 @@ function ProgressBar({ progress, label, error }: { progress: number; label: stri
 
 /* ─── Photo manager ──────────────────────────────────────── */
 function PhotoManager({ images, onChange }: { images: string[]; onChange: (imgs: string[]) => void }) {
+  const { BG, CARD_BG, BORDER, TEXT, MUTED, GOLD } = useColors();
   const fileRef = useRef<HTMLInputElement>(null);
   const [urlInput, setUrlInput] = useState('');
   const [addMode, setAddMode] = useState<'upload' | 'url' | null>(null);
@@ -208,11 +214,11 @@ function PhotoManager({ images, onChange }: { images: string[]; onChange: (imgs:
         {images.map((img, i) => (
           <div key={i} className="relative group">
             <div className="w-24 h-24 rounded-xl overflow-hidden"
-              style={{ border: i === 0 ? '2px solid #C9A227' : '1px solid #3A2E1E' }}>
+              style={{ border: i === 0 ? `2px solid ${GOLD}` : `1px solid ${BORDER}` }}>
               <img src={img} alt="" className="w-full h-full object-cover" />
             </div>
             {i === 0 && (
-              <span style={{ position: 'absolute', bottom: 4, left: 4, background: '#C9A227', color: '#fff', fontSize: '8px', fontWeight: 700, padding: '2px 5px', borderRadius: '4px', fontFamily: 'Manrope, sans-serif' }}>
+              <span style={{ position: 'absolute', bottom: 4, left: 4, background: GOLD, color: '#fff', fontSize: '8px', fontWeight: 700, padding: '2px 5px', borderRadius: '4px', fontFamily: 'Manrope, sans-serif' }}>
                 PRINCIPALE
               </span>
             )}
@@ -238,9 +244,9 @@ function PhotoManager({ images, onChange }: { images: string[]; onChange: (imgs:
         <motion.button whileTap={{ scale: 0.95 }} disabled={uploading}
           onClick={() => setAddMode(addMode ? null : 'upload')}
           className="w-24 h-24 rounded-xl flex flex-col items-center justify-center gap-1"
-          style={{ border: '2px dashed #3A2E1E', background: 'rgba(201,162,39,0.04)', cursor: uploading ? 'not-allowed' : 'pointer', opacity: uploading ? 0.5 : 1 }}>
-          <ImagePlus size={18} color="#C9A227" />
-          <span style={{ color: '#9A8A74', fontSize: '9px', fontFamily: 'Manrope, sans-serif' }}>Ajouter</span>
+          style={{ border: `2px dashed ${BORDER}`, background: 'rgba(201,162,39,0.04)', cursor: uploading ? 'not-allowed' : 'pointer', opacity: uploading ? 0.5 : 1 }}>
+          <ImagePlus size={18} color={GOLD} />
+          <span style={{ color: MUTED, fontSize: '9px', fontFamily: 'Manrope, sans-serif' }}>Ajouter</span>
         </motion.button>
       </div>
 
@@ -248,8 +254,8 @@ function PhotoManager({ images, onChange }: { images: string[]; onChange: (imgs:
       <AnimatePresence>
         {uploading && uploadProgress.length > 0 && (
           <motion.div initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
-            className="rounded-xl p-4 mb-3" style={{ background: '#2A2218', border: '1px solid #3A2E1E' }}>
-            <p style={{ color: '#9A8A74', fontSize: '11px', fontWeight: 700, fontFamily: 'Manrope, sans-serif', marginBottom: '10px' }}>
+            className="rounded-xl p-4 mb-3" style={{ background: BG, border: `1px solid ${BORDER}` }}>
+            <p style={{ color: MUTED, fontSize: '11px', fontWeight: 700, fontFamily: 'Manrope, sans-serif', marginBottom: '10px' }}>
               Upload Cloudinary en cours…
             </p>
             {uploadProgress.map((p, i) => (
@@ -272,14 +278,14 @@ function PhotoManager({ images, onChange }: { images: string[]; onChange: (imgs:
       <AnimatePresence>
         {addMode && !uploading && (
           <motion.div initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}
-            className="rounded-2xl p-4 mb-3" style={{ background: '#2A2218', border: '1px solid #3A2E1E' }}>
+            className="rounded-2xl p-4 mb-3" style={{ background: BG, border: `1px solid ${BORDER}` }}>
             <div className="flex gap-2 mb-3">
               {(['upload', 'url'] as const).map(mode => (
                 <button key={mode} onClick={() => setAddMode(mode)}
                   style={{ padding: '6px 16px', borderRadius: '10px', fontSize: '12px', fontWeight: 600, fontFamily: 'Manrope, sans-serif', cursor: 'pointer',
                     background: addMode === mode ? 'rgba(201,162,39,0.15)' : 'transparent',
-                    border: `1px solid ${addMode === mode ? '#C9A227' : '#3A2E1E'}`,
-                    color: addMode === mode ? '#C9A227' : '#9A8A74' }}>
+                    border: `1px solid ${addMode === mode ? GOLD : BORDER}`,
+                    color: addMode === mode ? GOLD : MUTED }}>
                   {mode === 'upload' ? "📁 Depuis l'ordinateur" : '🔗 URL externe'}
                 </button>
               ))}
@@ -307,7 +313,7 @@ function PhotoManager({ images, onChange }: { images: string[]; onChange: (imgs:
                 <input value={urlInput} onChange={e => setUrlInput(e.target.value)}
                   placeholder="https://res.cloudinary.com/… ou URL externe"
                   onKeyDown={e => e.key === 'Enter' && addFromUrl()}
-                  style={{ flex: 1, background: '#1E1A12', border: '1px solid #3A2E1E', borderRadius: '10px', padding: '10px 14px', color: '#F5EFE0', fontSize: '13px', fontFamily: 'Manrope, sans-serif', outline: 'none' }} />
+                  style={{ flex: 1, background: CARD_BG, border: `1px solid ${BORDER}`, borderRadius: '10px', padding: '10px 14px', color: TEXT, fontSize: '13px', fontFamily: 'Manrope, sans-serif', outline: 'none' }} />
                 <motion.button whileTap={{ scale: 0.95 }} onClick={addFromUrl}
                   style={{ padding: '10px 16px', borderRadius: '10px', background: '#C9A227', color: '#fff', fontWeight: 700, fontSize: '13px', border: 'none', cursor: 'pointer', fontFamily: 'Manrope, sans-serif' }}>
                   Ajouter
@@ -319,7 +325,7 @@ function PhotoManager({ images, onChange }: { images: string[]; onChange: (imgs:
       </AnimatePresence>
 
       {images.length === 0 && !uploading && (
-        <p style={{ color: '#5A4E3E', fontSize: '11px', fontFamily: 'Manrope, sans-serif' }}>
+        <p style={{ color: MUTED, fontSize: '11px', fontFamily: 'Manrope, sans-serif' }}>
           Aucune photo. La première photo ajoutée sera la photo principale.
         </p>
       )}
@@ -329,6 +335,7 @@ function PhotoManager({ images, onChange }: { images: string[]; onChange: (imgs:
 
 /* ─── Main Form ──────────────────────────────────────────── */
 export default function AdminProductForm() {
+  const { BG, CARD_BG, BORDER, TEXT, MUTED, GOLD } = useColors();
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
   const isCreating = !id || id === 'new';
@@ -413,8 +420,8 @@ export default function AdminProductForm() {
   };
 
   const S = {
-    card: { background: '#1E1A12', border: '1px solid #3A2E1E', borderRadius: '20px', padding: '24px' } as React.CSSProperties,
-    sectionTitle: { color: '#C9A227', fontSize: '11px', fontWeight: 700, letterSpacing: '2px', textTransform: 'uppercase' as const, fontFamily: 'Manrope, sans-serif', marginBottom: '16px' },
+    card: { background: CARD_BG, border: `1px solid ${BORDER}`, borderRadius: '20px', padding: '24px' } as React.CSSProperties,
+    sectionTitle: { color: GOLD, fontSize: '11px', fontWeight: 700, letterSpacing: '2px', textTransform: 'uppercase' as const, fontFamily: 'Manrope, sans-serif', marginBottom: '16px' },
   };
 
   if (loadError) {
@@ -422,7 +429,7 @@ export default function AdminProductForm() {
       <div className="flex flex-col items-center justify-center py-24">
         <p style={{ color: '#ef4444', fontFamily: 'Manrope, sans-serif' }}>{loadError}</p>
         <button onClick={() => navigate('/admin/products')}
-          style={{ marginTop: '16px', color: '#C9A227', background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'Manrope, sans-serif' }}>
+          style={{ marginTop: '16px', color: GOLD, background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'Manrope, sans-serif' }}>
           ← Retour aux produits
         </button>
       </div>
@@ -435,14 +442,14 @@ export default function AdminProductForm() {
       <div className="flex items-center gap-4 mb-8">
         <motion.button whileTap={{ scale: 0.88 }} onClick={() => navigate('/admin/products')}
           className="w-10 h-10 rounded-xl flex items-center justify-center"
-          style={{ background: '#1E1A12', border: '1px solid #3A2E1E', cursor: 'pointer' }}>
-          <ArrowLeft size={16} color="#9A8A74" />
+          style={{ background: CARD_BG, border: `1px solid ${BORDER}`, cursor: 'pointer' }}>
+          <ArrowLeft size={16} color={MUTED} />
         </motion.button>
         <div>
-          <h2 style={{ color: '#F5EFE0', fontWeight: 800, fontSize: '22px', fontFamily: 'Manrope, sans-serif', lineHeight: 1 }}>
+          <h2 style={{ color: TEXT, fontWeight: 800, fontSize: '22px', fontFamily: 'Manrope, sans-serif', lineHeight: 1 }}>
             {isCreating ? 'Nouveau produit' : 'Modifier le produit'}
           </h2>
-          {!isCreating && <p style={{ color: '#9A8A74', fontSize: '12px', fontFamily: 'Manrope, sans-serif', marginTop: '2px' }}>ID : {id}</p>}
+          {!isCreating && <p style={{ color: MUTED, fontSize: '12px', fontFamily: 'Manrope, sans-serif', marginTop: '2px' }}>ID : {id}</p>}
         </div>
       </div>
 
@@ -492,7 +499,7 @@ export default function AdminProductForm() {
               <Field label="Description">
                 <textarea value={form.description} onChange={e => set('description', e.target.value)}
                   rows={4} placeholder="Décrivez le bijou, ses caractéristiques, son histoire…"
-                  style={{ width: '100%', background: '#2A2218', border: '1px solid #3A2E1E', borderRadius: '12px', padding: '10px 14px', color: '#F5EFE0', fontSize: '13px', fontFamily: 'Manrope, sans-serif', outline: 'none', resize: 'vertical', boxSizing: 'border-box' }}
+                  style={{ width: '100%', background: BG, border: `1px solid ${BORDER}`, borderRadius: '12px', padding: '10px 14px', color: TEXT, fontSize: '13px', fontFamily: 'Manrope, sans-serif', outline: 'none', resize: 'vertical', boxSizing: 'border-box' }}
                 />
               </Field>
             </div>
@@ -542,9 +549,9 @@ export default function AdminProductForm() {
                       <button key={sz}
                         onClick={() => set('sizes', active ? form.sizes.filter(s => s !== sz) : [...form.sizes, sz].sort((a, b) => a - b))}
                         style={{ width: '44px', height: '44px', borderRadius: '10px', fontSize: '13px', fontWeight: active ? 700 : 400, fontFamily: 'Manrope, sans-serif', cursor: 'pointer',
-                          background: active ? 'rgba(201,162,39,0.15)' : '#2A2218',
-                          border: `1.5px solid ${active ? '#C9A227' : '#3A2E1E'}`,
-                          color: active ? '#C9A227' : '#9A8A74' }}>
+                          background: active ? 'rgba(201,162,39,0.15)' : BG,
+                          border: `1.5px solid ${active ? GOLD : BORDER}`,
+                          color: active ? GOLD : MUTED }}>
                         {sz}
                       </button>
                     );
@@ -568,7 +575,7 @@ export default function AdminProductForm() {
               return (
                 <button key={key} onClick={() => set(key, !active)}
                   className="flex items-center gap-2 px-4 py-2.5 rounded-xl"
-                  style={{ background: active ? `${color}18` : '#2A2218', border: `1.5px solid ${active ? color : '#3A2E1E'}`, color: active ? color : '#9A8A74', fontWeight: active ? 700 : 500, fontSize: '12px', fontFamily: 'Manrope, sans-serif', cursor: 'pointer' }}>
+                  style={{ background: active ? `${color}18` : BG, border: `1.5px solid ${active ? color : BORDER}`, color: active ? color : MUTED, fontWeight: active ? 700 : 500, fontSize: '12px', fontFamily: 'Manrope, sans-serif', cursor: 'pointer' }}>
                   {active && <Check size={12} />}
                   {label}
                 </button>
@@ -585,12 +592,12 @@ export default function AdminProductForm() {
               <div key={cv.id} className="flex items-center gap-3">
                 <input type="color" value={cv.hexColor}
                   onChange={e => set('colorVariants', form.colorVariants.map((v, j) => j === i ? { ...v, hexColor: e.target.value } : v))}
-                  style={{ width: '40px', height: '36px', borderRadius: '8px', border: '1px solid #3A2E1E', cursor: 'pointer', background: 'none' }} />
+                  style={{ width: '40px', height: '36px', borderRadius: '8px', border: `1px solid ${BORDER}`, cursor: 'pointer', background: 'none' }} />
                 <input value={cv.label} placeholder="Label (ex: Or Jaune 18K)"
                   onChange={e => set('colorVariants', form.colorVariants.map((v, j) => j === i ? { ...v, label: e.target.value, name: e.target.value.toLowerCase().replace(/\s+/g, '-') } : v))}
-                  style={{ flex: 1, background: '#2A2218', border: '1px solid #3A2E1E', borderRadius: '10px', padding: '8px 12px', color: '#F5EFE0', fontSize: '13px', fontFamily: 'Manrope, sans-serif', outline: 'none' }} />
+                  style={{ flex: 1, background: BG, border: `1px solid ${BORDER}`, borderRadius: '10px', padding: '8px 12px', color: TEXT, fontSize: '13px', fontFamily: 'Manrope, sans-serif', outline: 'none' }} />
                 <button onClick={() => set('colorVariants', form.colorVariants.filter((_, j) => j !== i))}
-                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: '#9A8A74' }}>
+                  style={{ background: 'none', border: 'none', cursor: 'pointer', color: MUTED }}>
                   <X size={14} />
                 </button>
               </div>
@@ -599,7 +606,7 @@ export default function AdminProductForm() {
           <motion.button whileTap={{ scale: 0.96 }}
             onClick={() => set('colorVariants', [...form.colorVariants, { id: `cv_${Date.now()}`, name: '', hexColor: '#C9A227', label: '' }])}
             className="flex items-center gap-2 px-4 py-2 rounded-xl"
-            style={{ background: 'transparent', border: '1px dashed #3A2E1E', color: '#9A8A74', fontSize: '12px', fontFamily: 'Manrope, sans-serif', cursor: 'pointer' }}>
+            style={{ background: 'transparent', border: `1px dashed ${BORDER}`, color: MUTED, fontSize: '12px', fontFamily: 'Manrope, sans-serif', cursor: 'pointer' }}>
             <Plus size={13} /> Ajouter une variante
           </motion.button>
         </div>
@@ -607,12 +614,12 @@ export default function AdminProductForm() {
         {/* ── Actions ── */}
         <div className="flex gap-3 pb-8">
           <button onClick={() => navigate('/admin/products')}
-            style={{ flex: 1, padding: '14px', borderRadius: '14px', background: '#1E1A12', border: '1px solid #3A2E1E', color: '#9A8A74', fontWeight: 600, fontSize: '14px', fontFamily: 'Manrope, sans-serif', cursor: 'pointer' }}>
+            style={{ flex: 1, padding: '14px', borderRadius: '14px', background: CARD_BG, border: `1px solid ${BORDER}`, color: MUTED, fontWeight: 600, fontSize: '14px', fontFamily: 'Manrope, sans-serif', cursor: 'pointer' }}>
             Annuler
           </button>
           <motion.button whileTap={{ scale: isSaving ? 1 : 0.97 }} onClick={handleSave} disabled={isSaving}
             className="flex items-center justify-center gap-2"
-            style={{ flex: 2, padding: '14px', borderRadius: '14px', background: saved ? '#22c55e' : isSaving ? '#3A2E1E' : 'linear-gradient(135deg,#C9A227,#E8C84A)', border: 'none', color: isSaving ? '#9A8A74' : '#fff', fontWeight: 700, fontSize: '14px', fontFamily: 'Manrope, sans-serif', cursor: isSaving ? 'not-allowed' : 'pointer', boxShadow: isSaving ? 'none' : '0 8px 24px rgba(201,162,39,0.3)' }}>
+            style={{ flex: 2, padding: '14px', borderRadius: '14px', background: saved ? '#22c55e' : isSaving ? BORDER : 'linear-gradient(135deg,#C9A227,#E8C84A)', border: 'none', color: isSaving ? MUTED : '#fff', fontWeight: 700, fontSize: '14px', fontFamily: 'Manrope, sans-serif', cursor: isSaving ? 'not-allowed' : 'pointer', boxShadow: isSaving ? 'none' : '0 8px 24px rgba(201,162,39,0.3)' }}>
             {saved ? <><Check size={16} /> Enregistré !</> : isSaving ? 'Sauvegarde...' : (isCreating ? 'Créer le produit' : 'Enregistrer les modifications')}
           </motion.button>
         </div>

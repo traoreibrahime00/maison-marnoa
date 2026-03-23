@@ -1,18 +1,17 @@
-import { useState } from 'react';
+import { useState, useEffect } from 'react';
 import { useNavigate } from 'react-router';
 import {
   ArrowLeft, Plus, Minus, Trash2, Tag, ShoppingBag, ArrowRight,
-  Truck, Gift, MessageSquare, Zap, X,
+  Truck, Gift, MessageSquare, X,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useApp, useColors } from '../context/AppContext';
 import { formatPrice } from '../data/products';
-import { openWhatsApp } from '../utils/whatsapp';
 import { apiUrl } from '../lib/api';
 import { toast } from 'sonner';
 
-const SHIPPING      = 3000;
-const FREE_SHIPPING = 50000; // FCFA threshold for free Abidjan delivery
+interface ShippingZone { id: string; name: string; zoneKey: string; price: number; isFree: boolean; icon: string; }
+interface ShippingData { zones: ShippingZone[]; freeThreshold: number; freeZone: string; codEnabled: boolean; }
 
 export default function Cart() {
   const navigate = useNavigate();
@@ -24,19 +23,37 @@ export default function Cart() {
 
   const [promoCode, setPromoCode]       = useState('');
   const [promoApplied, setPromoApplied] = useState(false);
-  const [promoDiscount, setPromoDiscount] = useState(10); // % from server
+  const [promoDiscount, setPromoDiscount] = useState(10);
   const [promoError, setPromoError]     = useState('');
   const [promoLoading, setPromoLoading] = useState(false);
+  const [shippingData, setShippingData] = useState<ShippingData | null>(null);
 
-  const discount = promoApplied ? Math.round(cartTotal * (promoDiscount / 100)) : 0;
-  const giftWrapFee  = isGiftWrap ? 2500 : 0;
-  const freeShipping = cartTotal >= FREE_SHIPPING;
-  const shipping     = cartItems.length > 0 ? (freeShipping ? 0 : SHIPPING) : 0;
-  const total        = cartTotal - discount + shipping + giftWrapFee;
+  useEffect(() => {
+    fetch(apiUrl('/api/shipping/zones'))
+      .then(r => r.json())
+      .then((d: ShippingData) => setShippingData(d))
+      .catch(() => {});
+  }, []);
 
-  /* Free shipping progress */
-  const remaining  = Math.max(FREE_SHIPPING - cartTotal, 0);
-  const progressPct = Math.min((cartTotal / FREE_SHIPPING) * 100, 100);
+  const freeThreshold = shippingData?.freeThreshold ?? 0;
+  const freeZoneName  = shippingData?.zones.find(z => z.zoneKey === shippingData?.freeZone)?.name ?? 'Abidjan';
+  // Default shipping price: cheapest active zone that is not permanently free
+  const defaultZone   = shippingData?.zones.find(z => !z.isFree) ?? shippingData?.zones[0];
+  const SHIPPING      = defaultZone?.price ?? 3000;
+  // Free shipping applies only if threshold is set (> 0) and cart reaches it
+  const freeShipping  = freeThreshold > 0 && cartTotal >= freeThreshold;
+  // Also free if all zones are marked isFree
+  const allZonesFree  = (shippingData?.zones.length ?? 0) > 0 && shippingData!.zones.every(z => z.isFree);
+
+  const discount    = promoApplied ? Math.round(cartTotal * (promoDiscount / 100)) : 0;
+  const giftWrapFee = isGiftWrap ? 2500 : 0;
+  const shipping    = cartItems.length > 0 ? ((freeShipping || allZonesFree) ? 0 : SHIPPING) : 0;
+  const total       = cartTotal - discount + shipping + giftWrapFee;
+
+  /* Free shipping progress — only shown when threshold is active */
+  const showProgress = freeThreshold > 0 && !allZonesFree;
+  const remaining    = Math.max(freeThreshold - cartTotal, 0);
+  const progressPct  = freeThreshold > 0 ? Math.min((cartTotal / freeThreshold) * 100, 100) : 0;
 
   const applyPromo = async () => {
     if (!promoCode.trim()) return;
@@ -74,26 +91,6 @@ export default function Cart() {
     toast('Panier vidé', { duration: 2000 });
   };
 
-  const handleWhatsAppCheckout = () => {
-    if (cartItems.length === 0) {
-      toast('Votre panier est vide', { duration: 2000 });
-      return;
-    }
-
-    const lines = cartItems.map(item =>
-      `- ${item.product.name} x${item.quantity}${item.size ? ` (Taille ${item.size})` : ''}`
-    );
-
-    const message = [
-      'Bonjour Maison Marnoa, je souhaite commander :',
-      ...lines,
-      '',
-      `Total estimé : ${formatPrice(total)}`,
-      'Merci de me confirmer la disponibilité et la livraison.',
-    ].join('\n');
-
-    openWhatsApp(message);
-  };
 
   return (
     <div style={{ background: BG, minHeight: '100vh', fontFamily: 'Manrope, sans-serif' }}>
@@ -179,7 +176,7 @@ export default function Cart() {
             {/* ── Left column ── */}
             <div>
               {/* ── FREE SHIPPING PROGRESS BAR ── */}
-              {cartItems.length > 0 && (
+              {cartItems.length > 0 && showProgress && (
                 <motion.div
                   initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }}
                   className="rounded-2xl p-4 mb-4"
@@ -201,7 +198,7 @@ export default function Cart() {
                       </motion.div>
                       {freeShipping ? (
                         <span style={{ color: '#16a34a', fontWeight: 700, fontSize: '12px' }}>
-                          🎉 Livraison Abidjan offerte !
+                          🎉 Livraison {freeZoneName} offerte !
                         </span>
                       ) : remaining <= 10000 ? (
                         <span style={{ color: TEXT, fontWeight: 700, fontSize: '12px' }}>
@@ -228,7 +225,7 @@ export default function Cart() {
                   </div>
                   {!freeShipping && (
                     <p style={{ color: MUTED, fontSize: '10px', marginTop: '6px' }}>
-                      Livraison Abidjan gratuite dès {formatPrice(FREE_SHIPPING)} d'achats
+                      Livraison {freeZoneName} gratuite dès {formatPrice(freeThreshold)} d'achats
                     </p>
                   )}
                 </motion.div>
@@ -365,17 +362,16 @@ export default function Cart() {
                   </motion.button>
                 </div>
                 {promoError && <p style={{ color: '#ef4444', fontSize: '11px', marginTop: '6px' }}>{promoError}</p>}
-                {promoApplied && <p style={{ color: '#22c55e', fontSize: '11px', marginTop: '6px' }}>Code MARNOA10 — 10% de réduction !</p>}
-                {!promoApplied && !promoError && <p style={{ color: MUTED, fontSize: '10px', marginTop: '6px' }}>Essayez : MARNOA10 pour 10% de réduction</p>}
               </div>
 
-              {/* Paiement 3x mention */}
+              {/* Paiement 3x mention
               <div className="flex items-start gap-3 px-4 py-3 rounded-2xl mb-5" style={{ background: 'rgba(201,162,39,0.06)', border: `1px solid rgba(201,162,39,0.15)` }}>
                 <Zap size={14} color={GOLD} className="mt-0.5 flex-shrink-0" />
                 <p style={{ color: MUTED, fontSize: '11px', lineHeight: 1.6 }}>
                   <span style={{ color: TEXT, fontWeight: 700 }}>Paiement en 3 fois sans frais disponible</span> — conditions validées avec un conseiller sur WhatsApp lors de votre commande.
                 </p>
               </div>
+               */}
 
               {/* Bottom spacer for BottomNav on mobile */}
               <div className="h-28 lg:hidden" />
@@ -407,11 +403,13 @@ export default function Cart() {
                   )}
                   <div className="flex justify-between">
                     <div className="flex items-center gap-1.5">
-                      <Truck size={12} color={freeShipping ? '#22c55e' : MUTED} />
-                      <span style={{ color: freeShipping ? '#22c55e' : MUTED, fontSize: '13px' }}>Livraison Abidjan</span>
+                      <Truck size={12} color={(freeShipping || allZonesFree) ? '#22c55e' : MUTED} />
+                      <span style={{ color: (freeShipping || allZonesFree) ? '#22c55e' : MUTED, fontSize: '13px' }}>
+                        Livraison {defaultZone ? `(${defaultZone.name})` : ''}
+                      </span>
                     </div>
-                    <span style={{ color: freeShipping ? '#22c55e' : TEXT, fontSize: '13px', fontWeight: 600 }}>
-                      {freeShipping ? 'GRATUITE 🎉' : formatPrice(SHIPPING)}
+                    <span style={{ color: (freeShipping || allZonesFree) ? '#22c55e' : TEXT, fontSize: '13px', fontWeight: 600 }}>
+                      {(freeShipping || allZonesFree) ? 'GRATUITE 🎉' : shippingData ? formatPrice(SHIPPING) : '—'}
                     </span>
                   </div>
                   <div className="flex justify-between pt-3" style={{ borderTop: `1px solid ${BORDER}` }}>
@@ -423,28 +421,17 @@ export default function Cart() {
                 </div>
               </div>
 
-              {/* WhatsApp CTA */}
+              {/* Wave CTA */}
               <div className="hidden lg:flex flex-col gap-3">
-                <motion.button
-                  onClick={handleWhatsAppCheckout}
-                  className="w-full flex items-center justify-center gap-3 py-4 rounded-2xl"
-                  whileTap={{ scale: 0.97 }}
-                  style={{ background: '#25D366', fontWeight: 700, fontSize: '15px', color: '#fff', boxShadow: '0 4px 20px rgba(37,211,102,0.3)' }}
-                >
-                  Commander via WhatsApp <ArrowRight size={18} />
-                </motion.button>
                 <motion.button
                   onClick={() => navigate('/checkout')}
                   className="w-full flex items-center justify-center gap-3 py-4 rounded-2xl"
                   whileTap={{ scale: 0.97 }}
                   style={{ background: 'linear-gradient(135deg, #C9A227 0%, #E8C84A 50%, #C9A227 100%)', fontWeight: 700, fontSize: '15px', color: '#fff', boxShadow: '0 4px 20px rgba(201,162,39,0.35)' }}
                 >
-                  Payer avec Wave <ArrowRight size={18} />
+                  Commander <ArrowRight size={18} />
                 </motion.button>
               </div>
-              <p className="hidden lg:block" style={{ color: MUTED, fontSize: '10px', textAlign: 'center', letterSpacing: '0.5px' }}>
-                💬 Commande confirmée par un conseiller Marnoa
-              </p>
             </div>
           </div>
         </div>
@@ -463,22 +450,14 @@ export default function Cart() {
                 {formatPrice(total)}
               </span>
             </div>
-            <div className="flex-1 flex items-center gap-2">
-              <motion.button
-                onClick={handleWhatsAppCheckout}
-                className="flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl"
-                whileTap={{ scale: 0.97 }}
-                style={{ background: '#25D366', color: '#fff', fontWeight: 700, fontSize: '13px', boxShadow: '0 4px 16px rgba(37,211,102,0.28)', whiteSpace: 'nowrap' }}
-              >
-                WhatsApp
-              </motion.button>
+            <div className="flex-1">
               <motion.button
                 onClick={() => navigate('/checkout')}
-                className="flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl"
+                className="w-full flex items-center justify-center gap-2 py-3 rounded-2xl"
                 whileTap={{ scale: 0.97 }}
-                style={{ background: 'linear-gradient(135deg, #C9A227 0%, #E8C84A 50%, #C9A227 100%)', color: '#fff', fontWeight: 700, fontSize: '13px', boxShadow: '0 4px 16px rgba(201,162,39,0.35)', whiteSpace: 'nowrap' }}
+                style={{ background: 'linear-gradient(135deg, #C9A227 0%, #E8C84A 50%, #C9A227 100%)', color: '#fff', fontWeight: 700, fontSize: '14px', boxShadow: '0 4px 16px rgba(201,162,39,0.35)', whiteSpace: 'nowrap' }}
               >
-                Wave
+                Commander
               </motion.button>
             </div>
           </div>

@@ -5,8 +5,14 @@
  */
 import { apiUrl } from '../lib/api';
 
-// Numéro WhatsApp sans + ni espaces — défini via VITE_WA_NUMBER dans .env
-export const WA_NUMBER = import.meta.env.VITE_WA_NUMBER || '2250700000000';
+// Numéro WhatsApp — priorité : DB (via API) > env var > fallback
+export let WA_NUMBER = import.meta.env.VITE_WA_NUMBER || '2250102528848';
+
+// Fetch the number from DB on first use and update the module variable
+fetch(apiUrl('/api/admin/general-settings'))
+  .then(r => r.json())
+  .then((d: { waNumber?: string }) => { if (d.waNumber) WA_NUMBER = d.waNumber; })
+  .catch(() => {});
 
 /** Format a number as FCFA price string */
 export function fmtPrice(amount: number): string {
@@ -39,6 +45,8 @@ export interface OrderPayload {
     address: string;
   };
   note?: string;
+  promoCode?: string;
+  discountAmount?: number;
 }
 
 export interface AppointmentPayload {
@@ -50,6 +58,7 @@ export interface AppointmentPayload {
   customer: {
     name: string;
     phone: string;
+    email?: string;
   };
 }
 
@@ -64,36 +73,39 @@ export function buildOrderMessage(order: OrderPayload): string {
     return `${i + 1}. *${l.name}* × ${l.quantity} ......... ${fmtPrice(l.price * l.quantity)}${meta ? `\n   └ ${meta}` : ''}`;
   }).join('\n');
 
+  const SEP = `--------------------`;
+
   const rows = [
-    `🛍️ *NOUVELLE COMMANDE — Maison Marnoa*`,
+    `*NOUVELLE COMMANDE - Maison Marnoa*`,
     ``,
-    `📋 *Commande :* #${order.orderId}`,
-    `📅 *Date :* ${dateStr} à ${timeStr}`,
+    `Commande : *#${order.orderId}*`,
+    `Date : ${dateStr} a ${timeStr}`,
     ``,
-    `━━━━━━━━━━━━━━━━━━━━`,
-    `🛒 *ARTICLES*`,
-    `━━━━━━━━━━━━━━━━━━━━`,
+    SEP,
+    `*ARTICLES*`,
+    SEP,
     lines,
     ``,
-    `━━━━━━━━━━━━━━━━━━━━`,
-    `💰 *RÉCAPITULATIF*`,
-    `━━━━━━━━━━━━━━━━━━━━`,
+    SEP,
+    `*RECAPITULATIF*`,
+    SEP,
     `Sous-total : ${fmtPrice(order.subtotal)}`,
-    ...(order.isGiftWrap ? [`🎁 Emballage cadeau : +${fmtPrice(order.giftWrapFee)}`] : []),
-    `🚚 Livraison (${order.deliveryLabel}) : ${order.deliveryPrice === 0 ? 'GRATUITE 🎉' : fmtPrice(order.deliveryPrice)}`,
+    ...(order.isGiftWrap ? [`Emballage cadeau : +${fmtPrice(order.giftWrapFee)}`] : []),
+    `Livraison (${order.deliveryLabel}) : ${order.deliveryPrice === 0 ? 'GRATUITE' : fmtPrice(order.deliveryPrice)}`,
+    ...(order.discountAmount ? [`Code promo (${order.promoCode}) : -${fmtPrice(order.discountAmount)}`] : []),
     ``,
-    `💳 *TOTAL : ${fmtPrice(order.total)}*`,
+    `*TOTAL : ${fmtPrice(order.total)}*`,
     ``,
-    `━━━━━━━━━━━━━━━━━━━━`,
-    `📦 *LIVRAISON*`,
-    `━━━━━━━━━━━━━━━━━━━━`,
-    `👤 Nom : ${order.customer.name}`,
-    `📱 Téléphone : ${order.customer.phone}`,
-    `📍 Adresse : ${order.customer.address}`,
-    ...(order.customer.email ? [`📧 Email : ${order.customer.email}`] : []),
-    ...(order.note ? [``, `📝 Note : ${order.note}`] : []),
+    SEP,
+    `*LIVRAISON*`,
+    SEP,
+    `Nom : ${order.customer.name}`,
+    `Tel : ${order.customer.phone}`,
+    `Adresse : ${order.customer.address}`,
+    ...(order.customer.email ? [`Email : ${order.customer.email}`] : []),
+    ...(order.note ? [``, `Note : ${order.note}`] : []),
     ``,
-    `Je souhaite confirmer cette commande. Merci ! 🙏`,
+    `Je souhaite confirmer cette commande. Merci !`,
   ];
 
   return rows.join('\n');
@@ -101,25 +113,27 @@ export function buildOrderMessage(order: OrderPayload): string {
 
 /** ─── APPOINTMENT MESSAGE ─── */
 export function buildAppointmentMessage(appt: AppointmentPayload): string {
+  const SEP = `--------------------`;
   const rows = [
-    `👋 *Bonjour Maison Marnoa,*`,
+    `*Bonjour Maison Marnoa,*`,
     ``,
     `Je souhaite confirmer mon rendez-vous :`,
     ``,
-    `━━━━━━━━━━━━━━━━━━━━`,
-    `📅 *DÉTAILS DU RDV*`,
-    `━━━━━━━━━━━━━━━━━━━━`,
-    `${appt.serviceIcon} Prestation : *${appt.serviceLabel}*`,
-    `📅 Date : *${appt.dayLabel} à ${appt.slot}*`,
-    `📍 Lieu : Showroom Maison Marnoa · Cocody, Abidjan`,
+    SEP,
+    `*DETAILS DU RDV*`,
+    SEP,
+    `Prestation : *${appt.serviceLabel}*`,
+    `Date : *${appt.dayLabel} a ${appt.slot}*`,
+    `Lieu : Showroom Maison Marnoa - Cocody, Abidjan`,
     ``,
-    `━━━━━━━━━━━━━━━━━━━━`,
-    `👤 *MES COORDONNÉES*`,
-    `━━━━━━━━━━━━━━━━━━━━`,
+    SEP,
+    `*MES COORDONNEES*`,
+    SEP,
     `Nom : ${appt.customer.name}`,
-    `📱 Téléphone : ${appt.customer.phone}`,
+    `Tel : ${appt.customer.phone}`,
+    ...(appt.customer.email ? [`Email : ${appt.customer.email}`] : []),
     ``,
-    `Merci de confirmer ce créneau ! 🙏`,
+    `Merci de confirmer ce creneau !`,
   ];
 
   return rows.join('\n');
@@ -171,10 +185,30 @@ export async function saveOrderToDb(order: PendingOrder): Promise<'api' | 'local
   }
 }
 
-export function saveAppointmentToDb(appt: PendingAppointment): void {
+export async function saveAppointmentToDb(appt: PendingAppointment): Promise<'api' | 'local'> {
   try {
-    const existing: PendingAppointment[] = JSON.parse(localStorage.getItem('mn_db_appointments') || '[]');
-    existing.unshift(appt);
-    localStorage.setItem('mn_db_appointments', JSON.stringify(existing.slice(0, 50)));
-  } catch {}
+    const res = await fetch(apiUrl('/api/appointments'), {
+      method: 'POST',
+      headers: { 'Content-Type': 'application/json' },
+      body: JSON.stringify({
+        ref: appt.appointmentId,
+        service: appt.payload.serviceLabel.toLowerCase().replace(/\s+/g, '_'),
+        serviceLabel: appt.payload.serviceLabel,
+        date: appt.payload.dayLabel,
+        slot: appt.payload.slot,
+        customerName: appt.payload.customer.name,
+        customerPhone: appt.payload.customer.phone,
+        customerEmail: appt.payload.customer.email,
+      }),
+    });
+    if (!res.ok) throw new Error(`HTTP ${res.status}`);
+    return 'api';
+  } catch {
+    try {
+      const existing: PendingAppointment[] = JSON.parse(localStorage.getItem('mn_db_appointments') || '[]');
+      existing.unshift(appt);
+      localStorage.setItem('mn_db_appointments', JSON.stringify(existing.slice(0, 50)));
+    } catch {}
+    return 'local';
+  }
 }

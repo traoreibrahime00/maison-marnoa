@@ -4,6 +4,7 @@ import { asyncHandler } from '../common/express';
 import { ordersService } from '../modules/orders/orders.service';
 import { InsufficientStockError } from '../modules/orders/orders.types';
 import { parseOrderPayload, parseOrderRef, parseOrdersFilter, parseOrderStatus, parseLookupQuery } from '../modules/orders/orders.validator';
+import { auth } from '../auth/auth';
 
 export const ordersRouter = Router();
 
@@ -35,6 +36,43 @@ ordersRouter.get(
 
     const orders = await ordersService.listOrders(filter.phone, filter.email, filter.limit);
     res.status(200).json(orders);
+  })
+);
+
+// Combined checkout: create order + auto-create account for guests
+ordersRouter.post(
+  '/checkout',
+  asyncHandler(async (req, res) => {
+    const input = parseOrderPayload(req.body);
+    if (!input) throw new HttpError(400, 'Invalid order payload');
+
+    // Detect authenticated session — skip email-exists check for logged-in users
+    let isAuthenticated = false;
+    try {
+      const session = await auth.api.getSession({
+        headers: new Headers(req.headers as Record<string, string>),
+      });
+      if (session?.user?.id) isAuthenticated = true;
+    } catch { /* no session */ }
+
+    try {
+      const result = await ordersService.guestCheckout(input, isAuthenticated);
+      res.status(201).json({
+        orderRef: result.order.orderRef,
+        accountCreated: result.accountCreated,
+        tempPassword: result.tempPassword,
+      });
+    } catch (error) {
+      if (error instanceof HttpError) throw error;
+      if (error instanceof InsufficientStockError) {
+        throw new HttpError(409, 'Insufficient stock', {
+          productId: error.productId,
+          requested: error.requested,
+          available: error.available,
+        });
+      }
+      throw error;
+    }
   })
 );
 

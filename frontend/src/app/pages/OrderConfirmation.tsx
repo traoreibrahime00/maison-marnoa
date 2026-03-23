@@ -1,331 +1,252 @@
-import { useState } from 'react';
-import { useNavigate } from 'react-router';
-import { MessageCircle, Headphones, ArrowRight, Calendar, Clock, UserPlus, Search, Mail, AlertCircle } from 'lucide-react';
-import { motion, AnimatePresence } from 'motion/react';
-import { useApp } from '../context/AppContext';
-import { useColors } from '../context/AppContext';
-import { openWhatsApp } from '../utils/whatsapp';
+import { useEffect, useState } from 'react';
+import { useNavigate, useLocation } from 'react-router';
+import {
+  Check, Clock, Package, Truck, ShoppingBag, ArrowRight,
+  MessageCircle, RefreshCw, KeyRound, Copy,
+} from 'lucide-react';
+import { motion } from 'motion/react';
+import { useApp, useColors } from '../context/AppContext';
 import { apiUrl } from '../lib/api';
-import { IMAGES } from '../data/products';
+import { openWhatsApp } from '../utils/whatsapp';
+import { ORDER_STATUS_META } from '../utils/orderStatus';
+import { toast } from 'sonner';
+
+const GOLD = '#C9A227';
+const STATUS_META = ORDER_STATUS_META;
+
+type NavState = {
+  orderRef?: string;
+  accountCreated?: boolean;
+  tempPassword?: string;
+};
+
+type OrderData = { ref: string; status: string; total: number; customerName: string; createdAt: string };
 
 export default function OrderConfirmation() {
-  const navigate = useNavigate();
+  const navigate  = useNavigate();
+  const location  = useLocation();
   const { lastOrderId, isLoggedIn } = useApp();
-  const { BG, CARD_BG, BORDER, TEXT, MUTED, GOLD } = useColors();
+  const { BG, CARD_BG, BORDER, TEXT, MUTED } = useColors();
 
-  const orderId = lastOrderId || '';
+  const navState = (location.state ?? {}) as NavState;
+  const { accountCreated, tempPassword } = navState;
 
-  // ── Guest order lookup ──
-  const [showLookup, setShowLookup] = useState(false);
-  const [lookupRef, setLookupRef] = useState(orderId);
-  const [lookupEmail, setLookupEmail] = useState('');
-  const [lookupLoading, setLookupLoading] = useState(false);
-  const [lookupResult, setLookupResult] = useState<{ status: string; customerName: string } | null>(null);
-  const [lookupError, setLookupError] = useState('');
+  const orderId = navState.orderRef || lastOrderId || '';
 
-  const handleLookup = async () => {
-    if (!lookupRef.trim() || !lookupEmail.trim()) {
-      setLookupError('Référence et email requis');
-      return;
-    }
-    setLookupLoading(true);
-    setLookupError('');
-    setLookupResult(null);
+  // Redirect if no order to show
+  useEffect(() => {
+    if (!orderId) navigate('/', { replace: true });
+  }, [orderId, navigate]);
+
+  const [order, setOrder]           = useState<OrderData | null>(null);
+  const [orderLoading, setOrderLoading] = useState(false);
+
+  const fetchOrder = async (ref: string) => {
+    if (!ref) return;
+    setOrderLoading(true);
     try {
-      const res = await fetch(
-        apiUrl(`/api/orders/lookup?ref=${encodeURIComponent(lookupRef.toUpperCase())}&email=${encodeURIComponent(lookupEmail.toLowerCase())}`)
-      );
-      if (!res.ok) {
-        setLookupError('Commande introuvable. Vérifiez la référence et l\'email utilisés lors de la commande.');
-        return;
-      }
-      const data = await res.json();
-      setLookupResult({ status: data.status, customerName: data.customerName });
-    } catch {
-      setLookupError('Erreur réseau, réessayez dans un instant.');
-    } finally {
-      setLookupLoading(false);
-    }
+      const res = await fetch(apiUrl(`/api/orders/${encodeURIComponent(ref)}`));
+      if (res.ok) setOrder(await res.json() as OrderData);
+    } catch {}
+    finally { setOrderLoading(false); }
   };
 
-  const STATUS_LABELS: Record<string, string> = {
-    PENDING_WHATSAPP: '⏳ En attente de confirmation',
-    CONFIRMED: '✅ Confirmée',
-    PAID: '💳 Payée',
-    SHIPPED: '🚚 Expédiée',
-    DELIVERED: '🎁 Livrée',
-    CANCELLED: '❌ Annulée',
-  };
+  useEffect(() => { if (orderId) fetchOrder(orderId); }, [orderId]);
 
-  const reopenWhatsApp = () => {
-    const msg = `👋 Bonjour Maison Marnoa,\n\nJe reviens concernant ma commande *#${orderId}*.\nPourriez-vous me confirmer sa prise en charge ? Merci 🙏`;
+  const status = order?.status ?? 'PENDING_WHATSAPP';
+  const meta   = STATUS_META[status] ?? STATUS_META.PENDING_WHATSAPP;
+
+  const STEPS = [
+    { icon: Check,    label: 'Commande enregistrée',   sub: `Réf. ${orderId || '—'}`,                               done: true },
+    { icon: MessageCircle, label: 'Message WhatsApp envoyé', sub: 'Notre équipe va confirmer votre commande',        done: true },
+    { icon: Package,  label: 'Commande confirmée',     sub: status === 'CONFIRMED' || ['PAID','SHIPPED','DELIVERED'].includes(status) ? 'Confirmée par notre équipe' : 'En attente de confirmation', done: ['CONFIRMED','PAID','SHIPPED','DELIVERED'].includes(status) },
+    { icon: Truck,    label: 'Livraison',               sub: status === 'DELIVERED' ? 'Livrée !' : 'En cours de livraison',  done: ['SHIPPED','DELIVERED'].includes(status) },
+  ];
+
+  const handleReopen = () => {
+    const msg = `Bonjour Maison Marnoa, je souhaite suivre ma commande *#${orderId}*.`;
     openWhatsApp(msg);
   };
 
   return (
-    <div style={{ background: BG, minHeight: '100vh', fontFamily: 'Manrope, sans-serif' }}>
-      {/* Hero */}
-      <div className="relative" style={{ height: 'clamp(180px,25vw,280px)' }}>
-        <img src={IMAGES.hero} alt="" className="w-full h-full object-cover" />
-        <div className="absolute inset-0" style={{ background: 'linear-gradient(to bottom, rgba(0,0,0,0.15) 0%, rgba(0,0,0,0.7) 100%)' }} />
-        {/* WhatsApp icon floating */}
+    <div style={{ background: BG, minHeight: '100vh', fontFamily: 'Manrope, sans-serif', paddingBottom: 48 }}>
+
+      {/* Top success banner */}
+      <motion.div
+        initial={{ opacity: 0, y: -16 }} animate={{ opacity: 1, y: 0 }}
+        className="w-full pt-14 pb-8 px-5 flex flex-col items-center text-center"
+        style={{ background: 'linear-gradient(180deg, rgba(37,211,102,0.06) 0%, transparent 100%)' }}
+      >
         <motion.div
-          initial={{ scale: 0, opacity: 0 }}
-          animate={{ scale: 1, opacity: 1 }}
-          transition={{ delay: 0.3, type: 'spring', stiffness: 200, damping: 20 }}
-          className="absolute inset-0 flex flex-col items-center justify-end pb-8"
+          initial={{ scale: 0 }} animate={{ scale: 1 }}
+          transition={{ type: 'spring', stiffness: 220, damping: 18, delay: 0.15 }}
+          className="w-20 h-20 rounded-full flex items-center justify-center mb-4"
+          style={{ background: 'linear-gradient(135deg,#25D366,#128C7E)', boxShadow: '0 8px 32px rgba(37,211,102,0.32)' }}
         >
-          <div
-            className="w-20 h-20 rounded-full flex items-center justify-center"
-            style={{ background: '#25D366', boxShadow: '0 8px 32px rgba(37,211,102,0.5)' }}
+          <Check size={36} color="#fff" />
+        </motion.div>
+
+        <motion.p
+          initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.3 }}
+          style={{ color: '#25D366', fontWeight: 700, fontSize: '10px', letterSpacing: '2.5px', textTransform: 'uppercase', marginBottom: 6 }}
+        >
+          ✦ COMMANDE ENVOYÉE
+        </motion.p>
+        <motion.h1
+          initial={{ opacity: 0, y: 6 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.35 }}
+          style={{ color: TEXT, fontWeight: 800, fontSize: 'clamp(22px,5vw,30px)', lineHeight: 1.2, marginBottom: 8 }}
+        >
+          Votre commande est enregistrée !
+        </motion.h1>
+        <motion.p
+          initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ delay: 0.4 }}
+          style={{ color: MUTED, fontSize: '13px', lineHeight: 1.7, maxWidth: 340 }}
+        >
+          Le message WhatsApp s'est ouvert. Notre équipe va confirmer votre commande rapidement.
+        </motion.p>
+      </motion.div>
+
+      <div className="px-4 lg:max-w-[640px] lg:mx-auto lg:px-0 flex flex-col gap-4">
+
+        {/* Temp password if account created */}
+        {accountCreated && tempPassword && (
+          <motion.div
+            initial={{ opacity: 0, y: -10 }} animate={{ opacity: 1, y: 0 }}
+            className="rounded-2xl p-4 flex flex-col gap-3"
+            style={{ background: 'rgba(34,197,94,0.05)', border: '1.5px solid rgba(34,197,94,0.2)' }}
           >
-            <MessageCircle size={36} color="#fff" fill="#fff" />
+            <div className="flex items-center gap-2">
+              <div className="w-5 h-5 rounded-full flex items-center justify-center flex-shrink-0" style={{ background: '#22c55e' }}>
+                <Check size={11} color="#fff" />
+              </div>
+              <p style={{ color: '#22c55e', fontWeight: 700, fontSize: '12px' }}>Compte créé automatiquement</p>
+            </div>
+            <p style={{ color: MUTED, fontSize: '11px', lineHeight: 1.6 }}>
+              Notez votre mot de passe temporaire pour suivre vos commandes plus tard.
+            </p>
+            <div className="rounded-xl px-4 py-3 flex items-center justify-between gap-3"
+              style={{ background: CARD_BG, border: `1px solid ${BORDER}` }}>
+              <div className="flex items-center gap-2">
+                <KeyRound size={12} color={MUTED} />
+                <span style={{ color: TEXT, fontSize: '13px', fontWeight: 800, letterSpacing: '2px' }}>{tempPassword}</span>
+              </div>
+              <button
+                onClick={() => { navigator.clipboard.writeText(tempPassword); toast('Mot de passe copié !'); }}
+                className="flex items-center gap-1 px-2 py-1 rounded-lg"
+                style={{ background: 'rgba(201,162,39,0.1)', color: GOLD, fontSize: '10px', fontWeight: 700 }}
+              >
+                <Copy size={9} /> Copier
+              </button>
+            </div>
+          </motion.div>
+        )}
+
+        {/* Order ref + status */}
+        <motion.div
+          initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.45 }}
+          className="rounded-2xl p-5 flex items-center justify-between"
+          style={{ background: CARD_BG, border: `1px solid ${BORDER}` }}
+        >
+          <div>
+            <p style={{ color: MUTED, fontSize: '10px', fontWeight: 700, letterSpacing: '1.5px', textTransform: 'uppercase', marginBottom: 4 }}>Référence commande</p>
+            <p style={{ color: TEXT, fontWeight: 800, fontSize: '22px' }}>#{orderId || '—'}</p>
+            {order?.customerName && (
+              <p style={{ color: MUTED, fontSize: '12px', marginTop: 2 }}>{order.customerName}</p>
+            )}
+          </div>
+          <div className="flex flex-col items-end gap-2">
+            <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg" style={{ background: meta.bg }}>
+              <div className="w-1.5 h-1.5 rounded-full" style={{ background: meta.color }} />
+              <span style={{ color: meta.color, fontWeight: 700, fontSize: '11px' }}>{meta.label}</span>
+            </div>
+            {orderLoading && <RefreshCw size={12} color={MUTED} className="animate-spin" />}
           </div>
         </motion.div>
-      </div>
 
-      <motion.div
-        initial={{ opacity: 0, y: 20 }}
-        animate={{ opacity: 1, y: 0 }}
-        transition={{ duration: 0.4, ease: [0.25, 0.46, 0.45, 0.94] }}
-        className="rounded-t-3xl -mt-6 relative z-10"
-        style={{ background: BG }}
-      >
-        <div className="px-5 pt-8 pb-10 lg:max-w-[720px] lg:mx-auto lg:px-0 lg:pt-10">
-
-          {/* Title */}
-          <div className="text-center mb-6">
-            <motion.div
-              initial={{ scale: 0 }} animate={{ scale: 1 }}
-              transition={{ delay: 0.4, type: 'spring', stiffness: 200 }}
-              className="inline-flex items-center gap-2 px-4 py-1.5 rounded-full mb-4"
-              style={{ background: 'rgba(37,211,102,0.1)', border: '1px solid rgba(37,211,102,0.3)' }}
-            >
-              <div className="w-2 h-2 rounded-full bg-green-500 animate-pulse" />
-              <span style={{ color: '#16a34a', fontWeight: 700, fontSize: '11px', letterSpacing: '1px' }}>
-                COMMANDE TRANSMISE SUR WHATSAPP
-              </span>
-            </motion.div>
-            <h1 style={{ color: TEXT, fontWeight: 800, fontSize: 'clamp(22px,4vw,32px)', lineHeight: 1.2, marginBottom: '12px' }}>
-              Merci pour votre<br />confiance !
-            </h1>
-            <p style={{ color: MUTED, fontSize: '13px', lineHeight: 1.7, maxWidth: '460px', margin: '0 auto' }}>
-              Votre récapitulatif de commande <strong style={{ color: TEXT }}>#{orderId}</strong> a été envoyé sur WhatsApp. Un conseiller Maison Marnoa vous contacte sous <strong style={{ color: TEXT }}>24h</strong> pour confirmer et finaliser le paiement.
-            </p>
-          </div>
-
-          {/* Status card */}
-          <div className="rounded-2xl mb-4 overflow-hidden" style={{ background: CARD_BG, border: `1px solid ${BORDER}`, boxShadow: '0 4px 16px rgba(0,0,0,0.06)' }}>
-            <div className="flex items-start justify-between p-5" style={{ borderBottom: `1px solid ${BORDER}` }}>
-              <div>
-                <p style={{ color: GOLD, fontWeight: 700, fontSize: '10px', letterSpacing: '2px', textTransform: 'uppercase', marginBottom: '6px' }}>
-                  Commande
-                </p>
-                <h3 style={{ color: TEXT, fontWeight: 700, fontSize: '20px' }}>#{orderId}</h3>
-              </div>
-              <div className="px-3 py-1.5 rounded-lg flex items-center gap-1.5" style={{ background: 'linear-gradient(135deg, #FDF8E8, #FFF3C0)', border: `1px solid rgba(201,162,39,0.25)` }}>
-                <Clock size={10} color={GOLD} />
-                <p style={{ color: GOLD, fontWeight: 700, fontSize: '10px', letterSpacing: '1px', textTransform: 'uppercase' }}>
-                  En attente WhatsApp
-                </p>
-              </div>
-            </div>
-
-            {/* Tracking steps */}
-            <div className="p-5">
-              {[
-                { icon: '📋', label: 'Commande créée', sub: 'Récapitulatif généré', done: true },
-                { icon: '💬', label: 'WhatsApp envoyé', sub: 'Message transmis à notre équipe', done: true },
-                { icon: '👤', label: 'Validation conseiller', sub: 'Confirmation sous 24h', done: false },
-                { icon: '💳', label: 'Paiement & expédition', sub: 'Selon mode convenu avec conseiller', done: false },
-              ].map((step, i, arr) => (
-                <div key={step.label} className="flex gap-3">
-                  <div className="flex flex-col items-center">
-                    <motion.div
-                      initial={step.done ? { scale: 0 } : {}}
-                      animate={step.done ? { scale: 1 } : {}}
-                      transition={{ delay: 0.5 + i * 0.12, type: 'spring' }}
-                      className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0 text-base"
-                      style={{
-                        background: step.done ? 'linear-gradient(135deg, #25D366, #128C7E)' : CARD_BG,
-                        border: `2px solid ${step.done ? '#25D366' : BORDER}`,
-                      }}
-                    >
-                      {step.done ? (
-                        <span style={{ fontSize: '14px' }}>{step.icon}</span>
-                      ) : (
-                        <span style={{ color: MUTED, fontSize: '12px' }}>{i + 1}</span>
-                      )}
-                    </motion.div>
-                    {i < arr.length - 1 && (
-                      <div className="w-px flex-1 my-1" style={{ background: step.done ? 'linear-gradient(to bottom, #25D366, rgba(37,211,102,0.2))' : BORDER, minHeight: '24px' }} />
-                    )}
-                  </div>
-                  <div className="flex-1 pb-4">
-                    <p style={{ color: step.done ? TEXT : MUTED, fontWeight: step.done ? 600 : 400, fontSize: '13px' }}>{step.label}</p>
-                    <p style={{ color: MUTED, fontSize: '11px', marginTop: '2px' }}>{step.sub}</p>
-                  </div>
-                </div>
-              ))}
-            </div>
-          </div>
-
-          {/* Info grid */}
-          <div className="grid grid-cols-2 gap-3 mb-5">
-            <div className="rounded-2xl p-4" style={{ background: CARD_BG, border: `1px solid ${BORDER}`, boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
-              <div className="w-9 h-9 rounded-xl flex items-center justify-center mb-3" style={{ background: 'linear-gradient(135deg, #FDF8E8, #FFF3C0)' }}>
-                <Calendar size={16} color={GOLD} />
-              </div>
-              <p style={{ color: MUTED, fontWeight: 700, fontSize: '9px', letterSpacing: '1px', textTransform: 'uppercase', marginBottom: '4px' }}>Réponse conseiller</p>
-              <p style={{ color: TEXT, fontWeight: 600, fontSize: '13px' }}>Sous 24h</p>
-            </div>
-            <div className="rounded-2xl p-4" style={{ background: CARD_BG, border: `1px solid ${BORDER}`, boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
-              <div className="w-9 h-9 rounded-xl flex items-center justify-center mb-3" style={{ background: 'linear-gradient(135deg, #FDF8E8, #FFF3C0)' }}>
-                <Headphones size={16} color={GOLD} />
-              </div>
-              <p style={{ color: MUTED, fontWeight: 700, fontSize: '9px', letterSpacing: '1px', textTransform: 'uppercase', marginBottom: '4px' }}>Support client</p>
-              <p style={{ color: TEXT, fontWeight: 600, fontSize: '13px' }}>7j/7 · WhatsApp</p>
-            </div>
-          </div>
-
-          {/* ── Guest lookup block ── */}
-          <div className="rounded-2xl mb-4 overflow-hidden" style={{ background: CARD_BG, border: `1px solid ${BORDER}` }}>
-            <button
-              className="w-full flex items-center justify-between px-5 py-4"
-              onClick={() => setShowLookup(v => !v)}
-            >
-              <div className="flex items-center gap-2">
-                <Search size={14} color={GOLD} />
-                <span style={{ color: TEXT, fontWeight: 700, fontSize: '13px' }}>Retrouver ma commande</span>
-              </div>
-              <span style={{ color: MUTED, fontSize: '11px' }}>{showLookup ? 'Fermer ↑' : 'Ouvrir ↓'}</span>
-            </button>
-
-            <AnimatePresence>
-              {showLookup && (
+        {/* Tracking steps */}
+        <motion.div
+          initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5 }}
+          className="rounded-2xl p-5"
+          style={{ background: CARD_BG, border: `1px solid ${BORDER}` }}
+        >
+          <p style={{ color: GOLD, fontWeight: 700, fontSize: '10px', letterSpacing: '2px', textTransform: 'uppercase', marginBottom: 16 }}>Suivi commande</p>
+          {STEPS.map((step, i) => (
+            <div key={step.label} className="flex gap-3">
+              <div className="flex flex-col items-center">
                 <motion.div
-                  initial={{ height: 0, opacity: 0 }} animate={{ height: 'auto', opacity: 1 }}
-                  exit={{ height: 0, opacity: 0 }} transition={{ duration: 0.22 }}
-                  style={{ overflow: 'hidden', borderTop: `1px solid ${BORDER}` }}
+                  initial={{ scale: 0.6, opacity: 0 }}
+                  animate={{ scale: 1, opacity: 1 }}
+                  transition={{ delay: 0.55 + i * 0.1, type: 'spring' }}
+                  className="w-8 h-8 rounded-full flex items-center justify-center flex-shrink-0"
+                  style={{
+                    background: step.done ? 'linear-gradient(135deg,#C9A227,#E8C84A)' : CARD_BG,
+                    border: `2px solid ${step.done ? GOLD : BORDER}`,
+                  }}
                 >
-                  <div className="px-5 py-4 flex flex-col gap-3">
-                    <p style={{ color: MUTED, fontSize: '11px', lineHeight: 1.6 }}>
-                      Entrez la référence de commande et l'email utilisé lors de la commande.
-                    </p>
-                    <div className="flex items-center gap-2 px-4 py-3 rounded-xl" style={{ background: CARD_BG, border: `1px solid ${BORDER}` }}>
-                      <Search size={13} color={MUTED} />
-                      <input
-                        type="text" placeholder="MN-12345"
-                        value={lookupRef}
-                        onChange={e => setLookupRef(e.target.value)}
-                        className="flex-1 bg-transparent outline-none"
-                        style={{ color: TEXT, fontFamily: 'Manrope, sans-serif', fontSize: '13px' }}
-                      />
-                    </div>
-                    <div className="flex items-center gap-2 px-4 py-3 rounded-xl" style={{ background: CARD_BG, border: `1px solid ${BORDER}` }}>
-                      <Mail size={13} color={MUTED} />
-                      <input
-                        type="email" placeholder="votre@email.com"
-                        value={lookupEmail}
-                        onChange={e => setLookupEmail(e.target.value)}
-                        className="flex-1 bg-transparent outline-none"
-                        style={{ color: TEXT, fontFamily: 'Manrope, sans-serif', fontSize: '13px' }}
-                      />
-                    </div>
-                    {lookupError && (
-                      <div className="flex items-start gap-2">
-                        <AlertCircle size={12} color="#ef4444" className="mt-0.5 flex-shrink-0" />
-                        <p style={{ color: '#ef4444', fontSize: '11px' }}>{lookupError}</p>
-                      </div>
-                    )}
-                    {lookupResult && (
-                      <div className="px-4 py-3 rounded-xl" style={{ background: 'rgba(201,162,39,0.06)', border: `1px solid rgba(201,162,39,0.2)` }}>
-                        <p style={{ color: TEXT, fontWeight: 700, fontSize: '12px', marginBottom: '2px' }}>
-                          Bonjour {lookupResult.customerName} !
-                        </p>
-                        <p style={{ color: GOLD, fontWeight: 600, fontSize: '12px' }}>
-                          {STATUS_LABELS[lookupResult.status] ?? lookupResult.status}
-                        </p>
-                      </div>
-                    )}
-                    <motion.button
-                      onClick={handleLookup}
-                      disabled={lookupLoading}
-                      whileTap={{ scale: 0.97 }}
-                      className="w-full py-3 rounded-xl flex items-center justify-center gap-2"
-                      style={{ background: GOLD, color: '#fff', fontWeight: 700, fontSize: '13px', opacity: lookupLoading ? 0.6 : 1 }}
-                    >
-                      {lookupLoading ? <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" /> : <Search size={14} />}
-                      {lookupLoading ? 'Recherche…' : 'Vérifier ma commande'}
-                    </motion.button>
-                  </div>
+                  {step.done
+                    ? <Check size={14} color="#fff" />
+                    : <step.icon size={13} color={MUTED} />}
                 </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
-
-          {/* CTA buttons */}
-          <div className="flex flex-col gap-3 mb-6">
-            {/* Reopen WhatsApp */}
-            <motion.button
-              onClick={reopenWhatsApp}
-              className="w-full flex items-center justify-center gap-2 py-4 rounded-2xl"
-              whileTap={{ scale: 0.97 }}
-              style={{ background: 'linear-gradient(135deg, #25D366, #128C7E)', color: '#fff', fontWeight: 700, fontSize: '14px', boxShadow: '0 4px 16px rgba(37,211,102,0.3)' }}
-            >
-              <MessageCircle size={18} /> Ouvrir WhatsApp
-            </motion.button>
-
-            {/* Create account prompt (only if not logged in) */}
-            {!isLoggedIn && (
-              <motion.button
-                onClick={() => navigate('/login?mode=register')}
-                initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.6 }}
-                className="w-full flex items-center justify-center gap-2 py-4 rounded-2xl"
-                whileTap={{ scale: 0.97 }}
-                style={{ background: 'linear-gradient(135deg, #C9A227 0%, #E8C84A 50%, #C9A227 100%)', color: '#fff', fontWeight: 700, fontSize: '14px', boxShadow: '0 4px 16px rgba(201,162,39,0.25)' }}
-              >
-                <UserPlus size={18} /> Créer mon compte & gagner des points 💎
-              </motion.button>
-            )}
-
-            <motion.button
-              onClick={() => navigate('/')}
-              className="w-full flex items-center justify-center gap-2 py-4 rounded-2xl"
-              whileTap={{ scale: 0.97 }}
-              style={{ background: 'transparent', border: `1.5px solid ${BORDER}`, color: MUTED, fontSize: '13px', fontWeight: 600 }}
-            >
-              Retour à l'accueil <ArrowRight size={16} />
-            </motion.button>
-          </div>
-
-          {/* Post-order loyalty promo */}
-          {!isLoggedIn && (
-            <motion.div
-              initial={{ opacity: 0, y: 12 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.8 }}
-              className="rounded-2xl p-4 mb-6"
-              style={{ background: 'linear-gradient(135deg, #FDF8E8, #FFF3C0)', border: `1px solid rgba(201,162,39,0.25)` }}
-            >
-              <p style={{ color: GOLD, fontWeight: 700, fontSize: '10px', letterSpacing: '2px', textTransform: 'uppercase', marginBottom: '6px' }}>💎 Programme Privilège</p>
-              <p style={{ color: TEXT, fontWeight: 700, fontSize: '14px', marginBottom: '4px' }}>Gagnez des points sur cette commande !</p>
-              <p style={{ color: MUTED, fontSize: '12px', lineHeight: 1.6 }}>
-                Créez un compte gratuit maintenant pour créditer les points de cette commande sur votre carte fidélité Marnoa.
-              </p>
-            </motion.div>
-          )}
-
-          {/* Brand footer */}
-          <div className="text-center">
-            <p style={{ color: GOLD, fontWeight: 800, fontSize: '12px', letterSpacing: '3px', textTransform: 'uppercase' }}>MAISON MARNOA</p>
-            <p style={{ color: MUTED, fontSize: '10px', marginTop: '2px' }}>Haute Joaillerie · Abidjan</p>
-            <div className="flex items-center justify-center gap-4 mt-3">
-              {['Instagram', 'Facebook', 'WhatsApp'].map(s => (
-                <span key={s} style={{ color: '#B0A090', fontSize: '10px' }}>{s}</span>
-              ))}
+                {i < STEPS.length - 1 && (
+                  <div className="w-px flex-1 my-1"
+                    style={{ background: step.done ? `linear-gradient(to bottom,${GOLD},rgba(201,162,39,0.15))` : BORDER, minHeight: 20 }} />
+                )}
+              </div>
+              <div className="flex-1 pb-4">
+                <p style={{ color: step.done ? TEXT : MUTED, fontWeight: step.done ? 700 : 400, fontSize: '13px' }}>{step.label}</p>
+                <p style={{ color: MUTED, fontSize: '11px', marginTop: 2 }}>{step.sub}</p>
+              </div>
             </div>
-          </div>
+          ))}
+        </motion.div>
+
+        {/* Info tiles */}
+        <motion.div
+          initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.55 }}
+          className="grid grid-cols-2 gap-3"
+        >
+          {[
+            { icon: Clock,   title: 'Délai de livraison', value: '2 – 5 jours ouvrés' },
+            { icon: Package, title: 'Emballage premium',  value: 'Coffret cadeau inclus' },
+          ].map(({ icon: Icon, title, value }) => (
+            <div key={title} className="rounded-2xl p-4" style={{ background: CARD_BG, border: `1px solid ${BORDER}` }}>
+              <div className="w-8 h-8 rounded-xl flex items-center justify-center mb-3" style={{ background: 'rgba(201,162,39,0.08)' }}>
+                <Icon size={15} color={GOLD} />
+              </div>
+              <p style={{ color: MUTED, fontSize: '10px', fontWeight: 700, letterSpacing: '1px', textTransform: 'uppercase', marginBottom: 3 }}>{title}</p>
+              <p style={{ color: TEXT, fontWeight: 600, fontSize: '12px' }}>{value}</p>
+            </div>
+          ))}
+        </motion.div>
+
+        {/* CTAs */}
+        <motion.div
+          initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.6 }}
+          className="flex flex-col gap-3"
+        >
+          <motion.button
+            onClick={handleReopen} whileTap={{ scale: 0.97 }}
+            className="w-full flex items-center justify-center gap-2 py-4 rounded-2xl"
+            style={{ background: 'linear-gradient(135deg,#25D366,#128C7E)', color: '#fff', fontWeight: 700, fontSize: '14px', boxShadow: '0 4px 16px rgba(37,211,102,0.28)', border: 'none' }}
+          >
+            <MessageCircle size={17} /> Suivre ma commande sur WhatsApp
+          </motion.button>
+
+          <motion.button
+            onClick={() => navigate(isLoggedIn ? '/profile' : '/')}
+            whileTap={{ scale: 0.97 }}
+            className="w-full flex items-center justify-center gap-2 py-4 rounded-2xl"
+            style={{ background: `linear-gradient(135deg,${GOLD},#E8C84A)`, color: '#fff', fontWeight: 700, fontSize: '14px', boxShadow: '0 4px 16px rgba(201,162,39,0.28)', border: 'none' }}
+          >
+            <ShoppingBag size={17} /> {isLoggedIn ? 'Voir mes commandes' : 'Continuer mes achats'} <ArrowRight size={16} />
+          </motion.button>
+        </motion.div>
+
+        <div className="text-center py-4">
+          <p style={{ color: GOLD, fontWeight: 800, fontSize: '11px', letterSpacing: '3px', textTransform: 'uppercase' }}>MAISON MARNOA</p>
+          <p style={{ color: MUTED, fontSize: '10px', marginTop: 2 }}>Haute Joaillerie · Abidjan</p>
         </div>
-      </motion.div>
+      </div>
     </div>
   );
 }

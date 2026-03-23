@@ -3,7 +3,7 @@ import { useColors } from '../context/AppContext';
 
 const ITEMS = [
   { icon: Truck,          label: 'Livraison 48h',       sub: 'Abidjan & national' },
-  { icon: Shield,         label: 'Paiement sécurisé',   sub: 'Wave & WhatsApp' },
+  { icon: Shield,         label: 'Commande sécurisée',  sub: 'Confirmée par notre équipe' },
   { icon: MessageCircle,  label: 'Support WhatsApp',     sub: '7j/7 · Réponse rapide' },
   { icon: RefreshCw,      label: 'Retour 7 jours',       sub: 'Satisfait ou remboursé' },
 ];

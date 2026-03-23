@@ -1,14 +1,17 @@
 import { useEffect, useState } from 'react';
 import { Outlet, useNavigate, useLocation, Link } from 'react-router';
 import { motion } from 'motion/react';
-import { LayoutGrid, LogOut, Plus, Home, Package, ShoppingCart, CreditCard, BarChart3, Settings } from 'lucide-react';
+import { LayoutGrid, LogOut, Plus, Home, Package, ShoppingCart, BarChart3, Settings, CalendarDays, Truck, Tag, Sun, Moon } from 'lucide-react';
 import { MaisonMarnoaLogo } from '../../components/MaisonMarnoaLogo';
 import { apiUrl } from '../../lib/api';
+import { useApp, useColors } from '../../context/AppContext';
 
 export default function AdminLayout() {
   const navigate = useNavigate();
   const location = useLocation();
   const [checking, setChecking] = useState(true);
+  const { darkMode, toggleDarkMode } = useApp();
+  const { BG, CARD_BG, BORDER, TEXT, MUTED, GOLD } = useColors();
 
   useEffect(() => {
     const verifyAdmin = async () => {
@@ -34,37 +37,41 @@ export default function AdminLayout() {
 
   if (checking) {
     return (
-      <div className="min-h-screen flex items-center justify-center" style={{ background: '#120F0A' }}>
-        <div className="w-6 h-6 border-2 border-yellow-600/30 border-t-yellow-500 rounded-full animate-spin" />
+      <div className="min-h-screen flex items-center justify-center" style={{ background: BG }}>
+        <div className="w-6 h-6 border-2 rounded-full animate-spin" style={{ borderColor: BORDER, borderTopColor: GOLD }} />
       </div>
     );
   }
 
   const nav = [
     { path: '/admin/dashboard', icon: BarChart3,  label: 'Dashboard' },
-    { path: '/admin/orders',    icon: ShoppingCart, label: 'Commandes' },
-    { path: '/admin/payments',  icon: CreditCard,   label: 'Paiements' },
-    { path: '/admin/products',  icon: Package,      label: 'Produits' },
-    { path: '/admin/settings',  icon: Settings,     label: 'Paramètres' },
+    { path: '/admin/orders',       icon: ShoppingCart,  label: 'Commandes' },
+    { path: '/admin/products',     icon: Package,       label: 'Produits' },
+    { path: '/admin/appointments', icon: CalendarDays,  label: 'Showroom' },
+    { path: '/admin/shipping',     icon: Truck,         label: 'Livraison' },
+    { path: '/admin/promos',       icon: Tag,           label: 'Promos' },
+    { path: '/admin/settings',     icon: Settings,      label: 'Paramètres' },
   ];
 
   const pageTitle =
     location.pathname.startsWith('/admin/dashboard') ? 'Dashboard'
-    : location.pathname.startsWith('/admin/orders')   ? 'Gestion des commandes'
-    : location.pathname.startsWith('/admin/payments') ? 'Gestion des paiements'
-    : location.pathname.startsWith('/admin/settings') ? 'Paramètres'
+    : location.pathname.startsWith('/admin/orders')       ? 'Gestion des commandes'
+    : location.pathname.startsWith('/admin/appointments') ? 'Showroom & Rendez-vous'
+    : location.pathname.startsWith('/admin/shipping')     ? 'Gestion de la livraison'
+    : location.pathname.startsWith('/admin/promos')       ? 'Codes promo'
+    : location.pathname.startsWith('/admin/settings')     ? 'Paramètres'
     : 'Gestion des produits';
 
   const showNewProductAction = location.pathname.startsWith('/admin/products');
 
   return (
-    <div className="min-h-screen flex" style={{ background: '#120F0A', fontFamily: 'Manrope, sans-serif' }}>
+    <div className="min-h-screen flex" style={{ background: BG, fontFamily: 'Manrope, sans-serif' }}>
       {/* Sidebar */}
-      <aside className="w-64 flex-shrink-0 flex flex-col" style={{ background: '#1A1410', borderRight: '1px solid #3A2E1E' }}>
+      <aside className="w-64 flex-shrink-0 flex flex-col" style={{ background: CARD_BG, borderRight: `1px solid ${BORDER}` }}>
         {/* Logo */}
-        <div className="px-6 py-6 border-b" style={{ borderColor: '#3A2E1E' }}>
-          <MaisonMarnoaLogo variant="light" size="sm" />
-          <p style={{ color: '#C9A227', fontSize: '9px', fontWeight: 700, letterSpacing: '2px', textTransform: 'uppercase', marginTop: '6px' }}>
+        <div className="px-6 py-6 border-b" style={{ borderColor: BORDER }}>
+          <MaisonMarnoaLogo variant={darkMode ? 'light' : 'dark'} size="sm" />
+          <p style={{ color: GOLD, fontSize: '9px', fontWeight: 700, letterSpacing: '2px', textTransform: 'uppercase', marginTop: '6px' }}>
             Back-office
           </p>
         </div>
@@ -81,7 +88,7 @@ export default function AdminLayout() {
                   style={{
                     background: active ? 'rgba(201,162,39,0.12)' : 'transparent',
                     border: `1px solid ${active ? 'rgba(201,162,39,0.25)' : 'transparent'}`,
-                    color: active ? '#C9A227' : '#9A8A74',
+                    color: active ? GOLD : MUTED,
                     cursor: 'pointer',
                   }}
                 >
@@ -94,17 +101,23 @@ export default function AdminLayout() {
         </nav>
 
         {/* Bottom actions */}
-        <div className="px-4 py-6 border-t flex flex-col gap-2" style={{ borderColor: '#3A2E1E' }}>
+        <div className="px-4 py-6 border-t flex flex-col gap-2" style={{ borderColor: BORDER }}>
           <Link to="/" target="_blank">
             <motion.div whileHover={{ x: 4 }} className="flex items-center gap-3 px-4 py-2.5 rounded-xl cursor-pointer"
-              style={{ color: '#9A8A74' }}>
+              style={{ color: MUTED }}>
               <Home size={14} />
               <span style={{ fontSize: '12px' }}>Voir le site</span>
             </motion.div>
           </Link>
+          <motion.button onClick={toggleDarkMode} whileHover={{ x: 4 }}
+            className="flex items-center gap-3 px-4 py-2.5 rounded-xl w-full text-left"
+            style={{ color: MUTED, background: 'none', border: 'none', cursor: 'pointer' }}>
+            {darkMode ? <Sun size={14} /> : <Moon size={14} />}
+            <span style={{ fontSize: '12px' }}>{darkMode ? 'Mode clair' : 'Mode sombre'}</span>
+          </motion.button>
           <motion.button onClick={logout} whileHover={{ x: 4 }}
             className="flex items-center gap-3 px-4 py-2.5 rounded-xl w-full text-left"
-            style={{ color: '#9A8A74', background: 'none', border: 'none', cursor: 'pointer' }}>
+            style={{ color: MUTED, background: 'none', border: 'none', cursor: 'pointer' }}>
             <LogOut size={14} />
             <span style={{ fontSize: '12px' }}>Déconnexion</span>
           </motion.button>
@@ -115,10 +128,10 @@ export default function AdminLayout() {
       <main className="flex-1 overflow-auto">
         {/* Top header */}
         <div className="sticky top-0 z-10 px-8 py-4 flex items-center justify-between"
-          style={{ background: 'rgba(18,15,10,0.95)', backdropFilter: 'blur(16px)', borderBottom: '1px solid #3A2E1E' }}>
+          style={{ background: `${CARD_BG}F0`, backdropFilter: 'blur(16px)', borderBottom: `1px solid ${BORDER}` }}>
           <div className="flex items-center gap-2">
-            <LayoutGrid size={16} color="#C9A227" />
-            <span style={{ color: '#F5EFE0', fontWeight: 700, fontSize: '15px' }}>{pageTitle}</span>
+            <LayoutGrid size={16} color={GOLD} />
+            <span style={{ color: TEXT, fontWeight: 700, fontSize: '15px' }}>{pageTitle}</span>
           </div>
           {showNewProductAction && (
             <Link to="/admin/products/new">

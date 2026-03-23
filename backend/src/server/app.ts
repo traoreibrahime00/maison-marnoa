@@ -1,17 +1,20 @@
 import express from 'express';
 import cors from 'cors';
+import rateLimit from 'express-rate-limit';
 import { Prisma } from '@prisma/client';
 import { toNodeHandler } from 'better-auth/node';
 import { auth } from './auth/auth';
 import { env } from './common/env';
 import { HttpError } from './common/errors';
 import { adminRouter } from './routes/admin.router';
+import { appointmentsRouter } from './routes/appointments.router';
 import { analyticsRouter } from './routes/analytics.router';
 import { ordersRouter } from './routes/orders.router';
 import { paymentsRouter } from './routes/payments.router';
 import { productsRouter } from './routes/products.router';
 import { promosRouter } from './routes/promos.router';
 import { receiptsRouter } from './routes/receipts.router';
+import { shippingRouter } from './routes/shipping.router';
 
 export const app = express();
 
@@ -32,7 +35,18 @@ app.use(
   })
 );
 
+// Rate limit on login: 8 attempts per 15 minutes per IP
+const loginRateLimit = rateLimit({
+  windowMs: 15 * 60 * 1000,
+  max: 8,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Trop de tentatives. Réessayez dans 15 minutes.' },
+  skipSuccessfulRequests: true,
+});
+
 const authHandler = toNodeHandler(auth);
+app.post('/api/auth/sign-in/email', loginRateLimit);
 app.all(/^\/api\/auth(?:\/.*)?$/, (req, res) => {
   void authHandler(req, res);
 });
@@ -49,7 +63,9 @@ app.use('/api/payments', paymentsRouter);
 app.use('/api/receipts', receiptsRouter);
 app.use('/api/promos', promosRouter);
 app.use('/api/admin', adminRouter);
+app.use('/api/appointments', appointmentsRouter);
 app.use('/api/track', analyticsRouter);
+app.use('/api/shipping', shippingRouter);
 
 app.use((_req, res) => {
   res.status(404).json({ error: 'Route not found' });

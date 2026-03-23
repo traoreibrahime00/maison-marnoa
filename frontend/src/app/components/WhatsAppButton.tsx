@@ -2,8 +2,8 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { X, MessageCircle } from 'lucide-react';
 
-const WHATSAPP_NUMBER = '2250700000000'; // Numéro WhatsApp Maison Marnoa (à remplacer)
-const WHATSAPP_MESSAGE = encodeURIComponent("Bonjour Maison Marnoa 💎 Je souhaite obtenir des informations sur vos bijoux.");
+const WHATSAPP_NUMBER = '2250102528848';
+const WHATSAPP_MESSAGE = encodeURIComponent("Bonjour Maison Marnoa, je souhaite obtenir des informations sur vos bijoux.");
 
 export function WhatsAppButton() {
   const [showTooltip, setShowTooltip] = useState(false);

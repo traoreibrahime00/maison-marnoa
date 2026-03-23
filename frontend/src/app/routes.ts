@@ -10,6 +10,7 @@ import Profile from './pages/Profile';
 import Orders from './pages/Orders';
 import Wishlist from './pages/Wishlist';
 import Login from './pages/Login';
+import ResetPassword from './pages/ResetPassword';
 import Search from './pages/Search';
 import Appointment from './pages/Appointment';
 import AdminLogin from './pages/admin/AdminLogin';
@@ -20,6 +21,9 @@ import AdminPayments from './pages/admin/AdminPayments';
 import AdminProducts from './pages/admin/AdminProducts';
 import AdminProductForm from './pages/admin/AdminProductForm';
 import AdminSettings from './pages/admin/AdminSettings';
+import AdminAppointments from './pages/admin/AdminAppointments';
+import AdminShipping from './pages/admin/AdminShipping';
+import AdminPromos from './pages/admin/AdminPromos';
 import NotFound from './pages/NotFound';
 export const router = createBrowserRouter([
   {
@@ -37,6 +41,7 @@ export const router = createBrowserRouter([
       { path: 'orders', Component: Orders },
       { path: 'wishlist', Component: Wishlist },
       { path: 'login', Component: Login },
+      { path: 'reset-password', Component: ResetPassword },
       { path: 'search', Component: Search },
       { path: 'appointment', Component: Appointment },
       { path: '*', Component: NotFound },
@@ -71,6 +76,21 @@ export const router = createBrowserRouter([
     path: '/admin/settings',
     Component: AdminLayout,
     children: [{ index: true, Component: AdminSettings }],
+  },
+  {
+    path: '/admin/appointments',
+    Component: AdminLayout,
+    children: [{ index: true, Component: AdminAppointments }],
+  },
+  {
+    path: '/admin/shipping',
+    Component: AdminLayout,
+    children: [{ index: true, Component: AdminShipping }],
+  },
+  {
+    path: '/admin/promos',
+    Component: AdminLayout,
+    children: [{ index: true, Component: AdminPromos }],
   },
   { path: '*', Component: NotFound },
 ]);

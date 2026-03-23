@@ -54,18 +54,24 @@ export default function Root() {
         }}
       >
         <Toaster
-          position="bottom-center"
-          offset={hideNav ? 24 : 90}
+          position="top-center"
+          offset={12}
+          gap={8}
+          richColors
+          closeButton
           toastOptions={{
+            duration: 2500,
             style: {
               fontFamily: 'Manrope, sans-serif',
               background: darkMode ? '#231E15' : '#FFFFFF',
               color: darkMode ? '#F5EFE0' : '#1C1510',
-              border: '1px solid #EDE5D0',
-              borderRadius: '16px',
-              boxShadow: '0 8px 24px rgba(0,0,0,0.12)',
+              border: `1px solid ${darkMode ? '#3A2F1E' : '#EDE5D0'}`,
+              borderRadius: '14px',
+              boxShadow: '0 4px 20px rgba(0,0,0,0.13)',
               fontSize: '13px',
               fontWeight: 600,
+              padding: '12px 16px',
+              maxWidth: '340px',
             },
           }}
         />

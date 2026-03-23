@@ -43,7 +43,7 @@ export const adminService = {
       prisma.product.count(),
       prisma.order.count(),
       prisma.order.aggregate({
-        where: { status: 'PAID' },
+        where: { status: { in: ['DELIVERED', 'PAID'] } },
         _sum: { total: true },
       }),
       prisma.order.groupBy({
@@ -60,7 +60,7 @@ export const adminService = {
       prisma.orderItem.groupBy({
         by: ['productId', 'productName'],
         where: {
-          order: { status: 'PAID' },
+          order: { status: { in: ['DELIVERED', 'PAID'] } },
         },
         _sum: {
           quantity: true,
@@ -107,7 +107,7 @@ export const adminService = {
     const fromDate = new Date(Date.now() - 14 * 24 * 60 * 60 * 1000);
     const paidOrders = await prisma.order.findMany({
       where: {
-        status: 'PAID',
+        status: { in: ['DELIVERED', 'PAID'] },
         createdAt: { gte: fromDate },
       },
       select: {

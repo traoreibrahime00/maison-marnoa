@@ -4,7 +4,10 @@ import {
   type OrderCreateInput,
   type OrderStatus,
   type OrdersFilterInput,
+  type PaymentMethodInput,
 } from './orders.types';
+
+const VALID_PAYMENT_METHODS: PaymentMethodInput[] = ['WAVE', 'CASH_ON_DELIVERY', 'WHATSAPP'];
 
 function normalizePhone(phone?: string): string {
   if (!phone) return '';
@@ -55,8 +58,11 @@ export function parseOrderPayload(raw: unknown): OrderCreateInput | null {
 
   if (parsedLines.length === 0) return null;
 
+  const rawMethod = String(data.paymentMethod || '').toUpperCase() as PaymentMethodInput;
+
   return {
     orderId,
+    paymentMethod: VALID_PAYMENT_METHODS.includes(rawMethod) ? rawMethod : 'WAVE',
     subtotal: Number(data.subtotal || 0),
     deliveryLabel: String(data.deliveryLabel || 'Livraison'),
     deliveryPrice: Number(data.deliveryPrice || 0),

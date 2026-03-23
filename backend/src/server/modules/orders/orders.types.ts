@@ -12,8 +12,11 @@ export interface OrderLineInput {
   colorLabel?: string;
 }
 
+export type PaymentMethodInput = 'WAVE' | 'CASH_ON_DELIVERY' | 'WHATSAPP';
+
 export interface OrderCreateInput {
   orderId: string;
+  paymentMethod?: PaymentMethodInput;
   subtotal: number;
   deliveryLabel: string;
   deliveryPrice: number;
@@ -27,6 +30,8 @@ export interface OrderCreateInput {
   };
   note?: string;
   lines: OrderLineInput[];
+  promoCode?: string;
+  discountAmount?: number;
 }
 
 export interface OrdersFilterInput {

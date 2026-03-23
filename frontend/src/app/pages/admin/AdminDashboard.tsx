@@ -6,6 +6,7 @@ import {
   Tooltip, ResponsiveContainer,
 } from 'recharts';
 import { TrendingUp, ShoppingBag, Package, AlertTriangle, Bell } from 'lucide-react';
+import { useColors } from '../../context/AppContext';
 
 type DashboardResponse = {
   metrics: {
@@ -16,7 +17,7 @@ type DashboardResponse = {
     statuses: Record<string, number>;
   };
   salesByDay: Array<{ date: string; amount: number; orders: number }>;
-  topProducts: Array<{ name: string; revenue: number; count: number }>;
+  topProducts: Array<{ productId: string | null; productName: string; quantitySold: number; revenue: number }>;
   notifications: Array<{ id: string; type: string; message: string; createdAt: string; status: string; meta?: Record<string, string> }>;
 };
 
@@ -38,13 +39,13 @@ const STATUS_COLOR: Record<string, string> = {
   CANCELLED: '#ef4444',
 };
 
-// Custom tooltip for the line chart
 function SalesTooltip({ active, payload, label }: { active?: boolean; payload?: Array<{ value: number }>; label?: string }) {
+  const { CARD_BG, BORDER, MUTED, GOLD } = useColors();
   if (!active || !payload?.length) return null;
   return (
-    <div style={{ background: '#1E1A12', border: '1px solid #3A2E1E', borderRadius: '12px', padding: '10px 14px' }}>
-      <p style={{ color: '#9A8A74', fontSize: '11px', fontFamily: 'Manrope, sans-serif', marginBottom: '4px' }}>{label}</p>
-      <p style={{ color: '#C9A227', fontSize: '14px', fontWeight: 700, fontFamily: 'Manrope, sans-serif' }}>
+    <div style={{ background: CARD_BG, border: `1px solid ${BORDER}`, borderRadius: '12px', padding: '10px 14px' }}>
+      <p style={{ color: MUTED, fontSize: '11px', fontFamily: 'Manrope, sans-serif', marginBottom: '4px' }}>{label}</p>
+      <p style={{ color: GOLD, fontSize: '14px', fontWeight: 700, fontFamily: 'Manrope, sans-serif' }}>
         {formatPrice(payload[0]?.value ?? 0)}
       </p>
     </div>
@@ -52,11 +53,12 @@ function SalesTooltip({ active, payload, label }: { active?: boolean; payload?: 
 }
 
 function BarTooltip({ active, payload, label }: { active?: boolean; payload?: Array<{ value: number }>; label?: string }) {
+  const { CARD_BG, BORDER, MUTED, GOLD } = useColors();
   if (!active || !payload?.length) return null;
   return (
-    <div style={{ background: '#1E1A12', border: '1px solid #3A2E1E', borderRadius: '12px', padding: '10px 14px', maxWidth: '200px' }}>
-      <p style={{ color: '#9A8A74', fontSize: '11px', fontFamily: 'Manrope, sans-serif', marginBottom: '4px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{label}</p>
-      <p style={{ color: '#C9A227', fontSize: '14px', fontWeight: 700, fontFamily: 'Manrope, sans-serif' }}>
+    <div style={{ background: CARD_BG, border: `1px solid ${BORDER}`, borderRadius: '12px', padding: '10px 14px', maxWidth: '200px' }}>
+      <p style={{ color: MUTED, fontSize: '11px', fontFamily: 'Manrope, sans-serif', marginBottom: '4px', whiteSpace: 'nowrap', overflow: 'hidden', textOverflow: 'ellipsis' }}>{label}</p>
+      <p style={{ color: GOLD, fontSize: '14px', fontWeight: 700, fontFamily: 'Manrope, sans-serif' }}>
         {formatPrice(payload[0]?.value ?? 0)}
       </p>
     </div>
@@ -64,6 +66,7 @@ function BarTooltip({ active, payload, label }: { active?: boolean; payload?: Ar
 }
 
 export default function AdminDashboard() {
+  const { CARD_BG, BORDER, TEXT, MUTED, GOLD } = useColors();
   const [data, setData] = useState<DashboardResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState('');
@@ -93,20 +96,15 @@ export default function AdminDashboard() {
     return Object.entries(statuses).sort((a, b) => b[1] - a[1]);
   }, [data?.metrics.statuses]);
 
-  // Last 14 days of sales, formatted for chart
   const salesChartData = useMemo(() => {
     if (!data?.salesByDay) return [];
-    return data.salesByDay.slice(-14).map(row => ({
-      ...row,
-      label: row.date.slice(5), // MM-DD
-    }));
+    return data.salesByDay.slice(-14).map(row => ({ ...row, label: row.date.slice(5) }));
   }, [data?.salesByDay]);
 
-  // Top 5 products for bar chart
   const topChartData = useMemo(() => {
     if (!data?.topProducts) return [];
     return data.topProducts.slice(0, 5).map(p => ({
-      name: p.name.length > 18 ? p.name.slice(0, 18) + '…' : p.name,
+      name: p.productName.length > 18 ? p.productName.slice(0, 18) + '…' : p.productName,
       revenue: p.revenue,
     }));
   }, [data?.topProducts]);
@@ -114,45 +112,24 @@ export default function AdminDashboard() {
   if (loading) {
     return (
       <div className="flex items-center justify-center py-24">
-        <p style={{ color: '#9A8A74', fontFamily: 'Manrope, sans-serif' }}>Chargement dashboard…</p>
+        <p style={{ color: MUTED, fontFamily: 'Manrope, sans-serif' }}>Chargement dashboard…</p>
       </div>
     );
   }
 
-  if (error) {
-    return <p style={{ color: '#ef4444', fontFamily: 'Manrope, sans-serif' }}>{error}</p>;
-  }
-
+  if (error) return <p style={{ color: '#ef4444', fontFamily: 'Manrope, sans-serif' }}>{error}</p>;
   if (!data) return null;
 
   const kpis = [
-    {
-      label: 'Chiffre d\'affaires',
-      value: formatPrice(data.metrics.revenuePaid),
-      icon: TrendingUp,
-      color: '#C9A227',
-      bg: 'rgba(201,162,39,0.08)',
-    },
-    {
-      label: 'Commandes',
-      value: data.metrics.totalOrders,
-      icon: ShoppingBag,
-      color: '#3b82f6',
-      bg: 'rgba(59,130,246,0.08)',
-    },
-    {
-      label: 'Produits',
-      value: data.metrics.totalProducts,
-      icon: Package,
-      color: '#a78bfa',
-      bg: 'rgba(167,139,250,0.08)',
-    },
+    { label: 'Chiffre d\'affaires', value: formatPrice(data.metrics.revenuePaid), icon: TrendingUp, color: '#C9A227', bg: 'rgba(201,162,39,0.08)' },
+    { label: 'Commandes',           value: data.metrics.totalOrders,              icon: ShoppingBag, color: '#3b82f6', bg: 'rgba(59,130,246,0.08)' },
+    { label: 'Produits',            value: data.metrics.totalProducts,            icon: Package,     color: '#a78bfa', bg: 'rgba(167,139,250,0.08)' },
     {
       label: 'Stock critique',
       value: data.metrics.lowStockCount,
       icon: AlertTriangle,
-      color: data.metrics.lowStockCount > 0 ? '#ef4444' : '#9A8A74',
-      bg: data.metrics.lowStockCount > 0 ? 'rgba(239,68,68,0.08)' : 'rgba(148,163,184,0.05)',
+      color: data.metrics.lowStockCount > 0 ? '#ef4444' : MUTED,
+      bg:    data.metrics.lowStockCount > 0 ? 'rgba(239,68,68,0.08)' : 'rgba(148,163,184,0.05)',
     },
   ];
 
@@ -163,17 +140,16 @@ export default function AdminDashboard() {
       <div className="grid grid-cols-4 gap-4">
         {kpis.map(kpi => (
           <div key={kpi.label} className="rounded-2xl p-5"
-            style={{ background: '#1E1A12', border: '1px solid #3A2E1E' }}>
+            style={{ background: CARD_BG, border: `1px solid ${BORDER}` }}>
             <div className="flex items-center justify-between mb-3">
-              <p style={{ color: '#9A8A74', fontSize: '11px', fontWeight: 600, letterSpacing: '0.5px', textTransform: 'uppercase', fontFamily: 'Manrope, sans-serif' }}>
+              <p style={{ color: MUTED, fontSize: '11px', fontWeight: 600, letterSpacing: '0.5px', textTransform: 'uppercase', fontFamily: 'Manrope, sans-serif' }}>
                 {kpi.label}
               </p>
-              <div className="w-8 h-8 rounded-xl flex items-center justify-center"
-                style={{ background: kpi.bg }}>
+              <div className="w-8 h-8 rounded-xl flex items-center justify-center" style={{ background: kpi.bg }}>
                 <kpi.icon size={14} color={kpi.color} />
               </div>
             </div>
-            <p style={{ color: '#F5EFE0', fontSize: '26px', fontWeight: 800, fontFamily: 'Manrope, sans-serif', lineHeight: 1 }}>
+            <p style={{ color: TEXT, fontSize: '26px', fontWeight: 800, fontFamily: 'Manrope, sans-serif', lineHeight: 1 }}>
               {kpi.value}
             </p>
           </div>
@@ -182,122 +158,86 @@ export default function AdminDashboard() {
 
       {/* Sales Chart */}
       {salesChartData.length > 0 && (
-        <div className="rounded-2xl p-5" style={{ background: '#1E1A12', border: '1px solid #3A2E1E' }}>
-          <div className="flex items-center justify-between mb-5">
-            <h3 style={{ color: '#C9A227', fontSize: '13px', fontWeight: 700, fontFamily: 'Manrope, sans-serif' }}>
-              Ventes — 14 derniers jours
-            </h3>
-          </div>
+        <div className="rounded-2xl p-5" style={{ background: CARD_BG, border: `1px solid ${BORDER}` }}>
+          <h3 style={{ color: GOLD, fontSize: '13px', fontWeight: 700, fontFamily: 'Manrope, sans-serif', marginBottom: '20px' }}>
+            Ventes — 14 derniers jours
+          </h3>
           <ResponsiveContainer width="100%" height={200}>
             <LineChart data={salesChartData} margin={{ top: 4, right: 8, left: 0, bottom: 0 }}>
-              <CartesianGrid strokeDasharray="3 3" stroke="#2A2218" vertical={false} />
-              <XAxis
-                dataKey="label"
-                tick={{ fill: '#9A8A74', fontSize: 11, fontFamily: 'Manrope, sans-serif' }}
-                axisLine={false} tickLine={false}
-              />
-              <YAxis
-                tick={{ fill: '#9A8A74', fontSize: 10, fontFamily: 'Manrope, sans-serif' }}
-                axisLine={false} tickLine={false}
-                tickFormatter={v => `${(v / 1000).toFixed(0)}k`}
-                width={40}
-              />
+              <CartesianGrid strokeDasharray="3 3" stroke={BORDER} vertical={false} />
+              <XAxis dataKey="label" tick={{ fill: MUTED, fontSize: 11, fontFamily: 'Manrope, sans-serif' }} axisLine={false} tickLine={false} />
+              <YAxis tick={{ fill: MUTED, fontSize: 10, fontFamily: 'Manrope, sans-serif' }} axisLine={false} tickLine={false} tickFormatter={v => `${(v / 1000).toFixed(0)}k`} width={40} />
               <Tooltip content={<SalesTooltip />} />
-              <Line
-                type="monotone"
-                dataKey="amount"
-                stroke="#C9A227"
-                strokeWidth={2.5}
-                dot={{ fill: '#C9A227', r: 3, strokeWidth: 0 }}
-                activeDot={{ r: 5, fill: '#E8C84A', strokeWidth: 0 }}
-              />
+              <Line type="monotone" dataKey="amount" stroke={GOLD} strokeWidth={2.5} dot={{ fill: GOLD, r: 3, strokeWidth: 0 }} activeDot={{ r: 5, fill: '#E8C84A', strokeWidth: 0 }} />
             </LineChart>
           </ResponsiveContainer>
         </div>
       )}
 
       <div className="grid grid-cols-2 gap-4">
-        {/* Top Products Bar Chart */}
+        {/* Top Products */}
         {topChartData.length > 0 && (
-          <div className="rounded-2xl p-5" style={{ background: '#1E1A12', border: '1px solid #3A2E1E' }}>
-            <h3 style={{ color: '#C9A227', fontSize: '13px', fontWeight: 700, marginBottom: '16px', fontFamily: 'Manrope, sans-serif' }}>
+          <div className="rounded-2xl p-5" style={{ background: CARD_BG, border: `1px solid ${BORDER}` }}>
+            <h3 style={{ color: GOLD, fontSize: '13px', fontWeight: 700, marginBottom: '16px', fontFamily: 'Manrope, sans-serif' }}>
               Top 5 produits
             </h3>
             <ResponsiveContainer width="100%" height={180}>
               <BarChart data={topChartData} layout="vertical" margin={{ top: 0, right: 8, left: 0, bottom: 0 }}>
-                <CartesianGrid strokeDasharray="3 3" stroke="#2A2218" horizontal={false} />
-                <XAxis
-                  type="number"
-                  tick={{ fill: '#9A8A74', fontSize: 10, fontFamily: 'Manrope, sans-serif' }}
-                  axisLine={false} tickLine={false}
-                  tickFormatter={v => `${(v / 1000).toFixed(0)}k`}
-                />
-                <YAxis
-                  type="category"
-                  dataKey="name"
-                  tick={{ fill: '#9A8A74', fontSize: 10, fontFamily: 'Manrope, sans-serif' }}
-                  axisLine={false} tickLine={false}
-                  width={90}
-                />
+                <CartesianGrid strokeDasharray="3 3" stroke={BORDER} horizontal={false} />
+                <XAxis type="number" tick={{ fill: MUTED, fontSize: 10, fontFamily: 'Manrope, sans-serif' }} axisLine={false} tickLine={false} tickFormatter={v => `${(v / 1000).toFixed(0)}k`} />
+                <YAxis type="category" dataKey="name" tick={{ fill: MUTED, fontSize: 10, fontFamily: 'Manrope, sans-serif' }} axisLine={false} tickLine={false} width={90} />
                 <Tooltip content={<BarTooltip />} />
-                <Bar dataKey="revenue" fill="#C9A227" radius={[0, 6, 6, 0]} />
+                <Bar dataKey="revenue" fill={GOLD} radius={[0, 6, 6, 0]} />
               </BarChart>
             </ResponsiveContainer>
           </div>
         )}
 
         {/* Order Statuses */}
-        <div className="rounded-2xl p-5" style={{ background: '#1E1A12', border: '1px solid #3A2E1E' }}>
-          <h3 style={{ color: '#C9A227', fontSize: '13px', fontWeight: 700, marginBottom: '16px', fontFamily: 'Manrope, sans-serif' }}>
+        <div className="rounded-2xl p-5" style={{ background: CARD_BG, border: `1px solid ${BORDER}` }}>
+          <h3 style={{ color: GOLD, fontSize: '13px', fontWeight: 700, marginBottom: '16px', fontFamily: 'Manrope, sans-serif' }}>
             Statuts commandes
           </h3>
           <div className="flex flex-col gap-3">
             {statusRows.map(([status, count]) => {
-              const color = STATUS_COLOR[status] ?? '#9A8A74';
+              const color = STATUS_COLOR[status] ?? MUTED;
               const total = statusRows.reduce((s, [, n]) => s + n, 0);
               const pct = total > 0 ? Math.round((count / total) * 100) : 0;
               return (
                 <div key={status}>
                   <div className="flex justify-between mb-1">
-                    <span style={{ color: '#9A8A74', fontSize: '12px', fontFamily: 'Manrope, sans-serif' }}>
-                      {STATUS_FR[status] ?? status}
-                    </span>
-                    <span style={{ color: '#F5EFE0', fontSize: '12px', fontWeight: 700, fontFamily: 'Manrope, sans-serif' }}>
-                      {count}
-                    </span>
+                    <span style={{ color: MUTED, fontSize: '12px', fontFamily: 'Manrope, sans-serif' }}>{STATUS_FR[status] ?? status}</span>
+                    <span style={{ color: TEXT, fontSize: '12px', fontWeight: 700, fontFamily: 'Manrope, sans-serif' }}>{count}</span>
                   </div>
-                  <div style={{ height: '4px', background: '#2A2218', borderRadius: '2px', overflow: 'hidden' }}>
+                  <div style={{ height: '4px', background: BORDER, borderRadius: '2px', overflow: 'hidden' }}>
                     <div style={{ width: `${pct}%`, height: '100%', background: color, borderRadius: '2px', transition: 'width 0.6s ease' }} />
                   </div>
                 </div>
               );
             })}
             {statusRows.length === 0 && (
-              <p style={{ color: '#5A4E3E', fontSize: '12px', fontFamily: 'Manrope, sans-serif' }}>Aucune commande.</p>
+              <p style={{ color: MUTED, fontSize: '12px', fontFamily: 'Manrope, sans-serif' }}>Aucune commande.</p>
             )}
           </div>
         </div>
       </div>
 
-      {/* Recent WhatsApp Notifications */}
+      {/* Recent Notifications */}
       {data.notifications.length > 0 && (
-        <div className="rounded-2xl p-5" style={{ background: '#1E1A12', border: '1px solid #3A2E1E' }}>
+        <div className="rounded-2xl p-5" style={{ background: CARD_BG, border: `1px solid ${BORDER}` }}>
           <div className="flex items-center gap-2 mb-4">
-            <Bell size={14} color="#C9A227" />
-            <h3 style={{ color: '#C9A227', fontSize: '13px', fontWeight: 700, fontFamily: 'Manrope, sans-serif' }}>
+            <Bell size={14} color={GOLD} />
+            <h3 style={{ color: GOLD, fontSize: '13px', fontWeight: 700, fontFamily: 'Manrope, sans-serif' }}>
               Notifications récentes
             </h3>
           </div>
           <div className="flex flex-col gap-0">
             {data.notifications.slice(0, 8).map((row, i) => (
-              <div key={row.id}
-                className="flex items-start justify-between gap-4 py-3"
-                style={{ borderBottom: i < Math.min(data.notifications.length, 8) - 1 ? '1px solid #2A2218' : 'none' }}>
+              <div key={row.id} className="flex items-start justify-between gap-4 py-3"
+                style={{ borderBottom: i < Math.min(data.notifications.length, 8) - 1 ? `1px solid ${BORDER}` : 'none' }}>
                 <div className="flex-1 min-w-0">
-                  <p style={{ color: '#F5EFE0', fontSize: '12px', fontFamily: 'Manrope, sans-serif', lineHeight: 1.5 }}>
-                    {row.message}
-                  </p>
-                  <p style={{ color: '#9A8A74', fontSize: '10px', fontFamily: 'Manrope, sans-serif', marginTop: '2px' }}>
+                  <p style={{ color: TEXT, fontSize: '12px', fontFamily: 'Manrope, sans-serif', lineHeight: 1.5 }}>{row.message}</p>
+                  <p style={{ color: MUTED, fontSize: '10px', fontFamily: 'Manrope, sans-serif', marginTop: '2px' }}>
                     {new Date(row.createdAt).toLocaleString('fr-CI')}
                   </p>
                 </div>
@@ -308,9 +248,7 @@ export default function AdminDashboard() {
                       WhatsApp
                     </a>
                   )}
-                  <span style={{ color: '#C9A227', fontSize: '10px', fontWeight: 700, fontFamily: 'Manrope, sans-serif' }}>
-                    {row.status}
-                  </span>
+                  <span style={{ color: GOLD, fontSize: '10px', fontWeight: 700, fontFamily: 'Manrope, sans-serif' }}>{row.status}</span>
                 </div>
               </div>
             ))}

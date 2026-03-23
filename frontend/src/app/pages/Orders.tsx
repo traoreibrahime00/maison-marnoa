@@ -166,7 +166,13 @@ export default function Orders() {
               });
 
               return (
-                <div key={order.id} className="rounded-2xl p-4" style={{ background: CARD_BG, border: `1px solid ${BORDER}`, boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}>
+                <motion.div
+                  key={order.id}
+                  className="rounded-2xl p-4 cursor-pointer"
+                  style={{ background: CARD_BG, border: `1px solid ${BORDER}`, boxShadow: '0 2px 8px rgba(0,0,0,0.04)' }}
+                  onClick={() => navigate('/order-confirmation', { state: { orderRef: order.orderRef } })}
+                  whileTap={{ scale: 0.99 }}
+                >
                   <div className="flex items-start justify-between gap-3 mb-3">
                     <div>
                       <p style={{ color: GOLD, fontWeight: 700, fontSize: '10px', letterSpacing: '1px', textTransform: 'uppercase' }}>
@@ -208,7 +214,7 @@ export default function Orders() {
                     </div>
                     <span style={{ color: GOLD, fontWeight: 800, fontSize: '15px' }}>{formatPrice(order.total)}</span>
                   </div>
-                </div>
+                </motion.div>
               );
             })}
           </div>

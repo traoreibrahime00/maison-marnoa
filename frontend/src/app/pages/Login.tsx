@@ -171,7 +171,7 @@ export default function Login() {
             {([{ id: 'login', label: 'Connexion' }, { id: 'register', label: 'Inscription' }] as const).map(tab => (
               <motion.button
                 key={tab.id}
-                onClick={() => { setMode(tab.id); setErrors({}); setResetSent(false); }}
+                onClick={() => { setMode(tab.id); setErrors({}); setResetSent(false); setForm({ name: '', email: '', password: '' }); }}
                 className="flex-1 py-3 rounded-xl"
                 whileTap={{ scale: 0.97 }}
                 style={{
@@ -345,7 +345,7 @@ export default function Login() {
                     <div className="flex items-center gap-3 px-4 py-3.5 rounded-2xl" style={{ background: CARD_BG, border: `1px solid ${errors.name ? '#ef4444' : BORDER}` }}>
                       <User size={16} color={MUTED} />
                       <input
-                        type="text" placeholder="Jean-Marc Koffi"
+                        type="text" placeholder="Jean-Marc Koffi" autoComplete="name"
                         value={form.name} onChange={e => setForm(f => ({ ...f, name: e.target.value }))}
                         className="flex-1 bg-transparent outline-none"
                         style={{ color: TEXT, fontFamily: 'Manrope, sans-serif', fontSize: '14px' }}
@@ -361,7 +361,7 @@ export default function Login() {
                   <div className="flex items-center gap-3 px-4 py-3.5 rounded-2xl" style={{ background: CARD_BG, border: `1px solid ${errors.email ? '#ef4444' : BORDER}` }}>
                     <Mail size={16} color={MUTED} />
                     <input
-                      type="email" placeholder="jean@exemple.com"
+                      type="email" placeholder="jean@exemple.com" autoComplete="email"
                       value={form.email} onChange={e => setForm(f => ({ ...f, email: e.target.value }))}
                       className="flex-1 bg-transparent outline-none"
                       style={{ color: TEXT, fontFamily: 'Manrope, sans-serif', fontSize: '14px' }}
@@ -377,6 +377,7 @@ export default function Login() {
                     <Lock size={16} color={MUTED} />
                     <input
                       type={showPwd ? 'text' : 'password'} placeholder="••••••••"
+                      autoComplete={mode === 'register' ? 'new-password' : 'current-password'}
                       value={form.password} onChange={e => setForm(f => ({ ...f, password: e.target.value }))}
                       onKeyDown={e => e.key === 'Enter' && handleSubmit()}
                       className="flex-1 bg-transparent outline-none"

@@ -24,9 +24,9 @@ body {
   -ms-overflow-style: none;
 }
 
-/* Prevent iOS auto-zoom on input focus */
+/* Prevent iOS auto-zoom on input focus — overrides inline styles */
 input, select, textarea {
-  font-size: 16px;
+  font-size: 16px !important;
 }
 
 input::placeholder {

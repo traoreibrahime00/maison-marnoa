@@ -6,7 +6,7 @@ on:
 
 jobs:
   deploy:
-    name: Deploy to Hostinger VPS
+    name: Deploy to Hostinger VPSS
     runs-on: ubuntu-latest
     timeout-minutes: 20
 

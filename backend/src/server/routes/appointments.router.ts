@@ -1,5 +1,5 @@
 import { Router } from 'express';
-import { asyncHandler } from '../common/express';
+import { asyncHandler, requireAdmin } from '../common/express';
 import { HttpError } from '../common/errors';
 import { appointmentsService } from '../modules/appointments/appointments.service';
 import { prisma } from '../common/prisma';
@@ -72,6 +72,7 @@ appointmentsRouter.get(
 // PUT /api/appointments/settings — admin saves weekly config
 appointmentsRouter.put(
   '/settings',
+  requireAdmin,
   asyncHandler(async (req, res) => {
     const config = req.body as Record<string, { open: boolean; slots: string[] }>;
     if (!config || typeof config !== 'object') throw new HttpError(400, 'Invalid config');
@@ -101,6 +102,7 @@ appointmentsRouter.get(
 // PATCH /api/appointments/:ref/status — update status
 appointmentsRouter.patch(
   '/:ref/status',
+  requireAdmin,
   asyncHandler(async (req, res) => {
     const { ref } = req.params;
     const { status } = req.body as { status: string };

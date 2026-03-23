@@ -6,6 +6,10 @@ dist
 .env
 .env.*
 
+# Claude Code local files
+CLAUDE.md
+.claude/
+
 # Local Prisma artifacts
 backend/prisma/dev.db
 backend/prisma/dev.db-journal

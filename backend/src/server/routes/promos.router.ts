@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { HttpError } from '../common/errors';
-import { asyncHandler } from '../common/express';
+import { asyncHandler, requireAdmin } from '../common/express';
 import { promosService } from '../modules/promos/promos.service';
 
 export const promosRouter = Router();
@@ -22,6 +22,7 @@ promosRouter.post(
 // Admin: list all promo codes
 promosRouter.get(
   '/',
+  requireAdmin,
   asyncHandler(async (_req, res) => {
     const promos = await promosService.listAll();
     res.status(200).json(promos);
@@ -31,6 +32,7 @@ promosRouter.get(
 // Admin: create promo code
 promosRouter.post(
   '/',
+  requireAdmin,
   asyncHandler(async (req, res) => {
     const body = (req.body || {}) as Record<string, unknown>;
     const code = String(body.code || '').trim().toUpperCase();
@@ -50,6 +52,7 @@ promosRouter.post(
 // Admin: toggle active
 promosRouter.patch(
   '/:id/toggle',
+  requireAdmin,
   asyncHandler(async (req, res) => {
     const { id } = req.params;
     const isActive = Boolean((req.body as Record<string, unknown>)?.isActive);
@@ -61,6 +64,7 @@ promosRouter.patch(
 // Admin: delete
 promosRouter.delete(
   '/:id',
+  requireAdmin,
   asyncHandler(async (req, res) => {
     await promosService.remove(req.params.id);
     res.status(204).send();

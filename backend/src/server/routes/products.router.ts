@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { HttpError } from '../common/errors';
-import { asyncHandler } from '../common/express';
+import { asyncHandler, requireAdmin } from '../common/express';
 import { productsService } from '../modules/products/products.service';
 import { parseProductInput, parseProductPatchInput } from '../modules/products/products.validator';
 
@@ -29,6 +29,7 @@ productsRouter.get(
 
 productsRouter.post(
   '/',
+  requireAdmin,
   asyncHandler(async (req, res) => {
     const input = parseProductInput(req.body);
     if (!input) throw new HttpError(400, 'Invalid product payload');
@@ -40,6 +41,7 @@ productsRouter.post(
 
 productsRouter.patch(
   '/:id',
+  requireAdmin,
   asyncHandler(async (req, res) => {
     const id = String(req.params.id || '').trim();
     if (!id) throw new HttpError(400, 'Missing product id');
@@ -54,6 +56,7 @@ productsRouter.patch(
 
 productsRouter.delete(
   '/:id',
+  requireAdmin,
   asyncHandler(async (req, res) => {
     const id = String(req.params.id || '').trim();
     if (!id) throw new HttpError(400, 'Missing product id');

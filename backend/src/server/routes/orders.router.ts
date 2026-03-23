@@ -1,6 +1,6 @@
 import { Router } from 'express';
 import { HttpError } from '../common/errors';
-import { asyncHandler } from '../common/express';
+import { asyncHandler, requireAdmin } from '../common/express';
 import { ordersService } from '../modules/orders/orders.service';
 import { InsufficientStockError } from '../modules/orders/orders.types';
 import { parseOrderPayload, parseOrderRef, parseOrdersFilter, parseOrderStatus, parseLookupQuery } from '../modules/orders/orders.validator';
@@ -122,6 +122,7 @@ ordersRouter.get(
 
 ordersRouter.patch(
   '/:id',
+  requireAdmin,
   asyncHandler(async (req, res) => {
     const orderRef = parseOrderRef(req.params.id);
     if (!orderRef) {

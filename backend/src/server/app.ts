@@ -1,11 +1,13 @@
 import express from 'express';
 import cors from 'cors';
+import helmet from 'helmet';
 import rateLimit from 'express-rate-limit';
 import { Prisma } from '@prisma/client';
 import { toNodeHandler } from 'better-auth/node';
 import { auth } from './auth/auth';
 import { env } from './common/env';
 import { HttpError } from './common/errors';
+import { requireAdmin } from './common/express';
 import { adminRouter } from './routes/admin.router';
 import { appointmentsRouter } from './routes/appointments.router';
 import { analyticsRouter } from './routes/analytics.router';
@@ -19,6 +21,7 @@ import { shippingRouter } from './routes/shipping.router';
 export const app = express();
 
 app.disable('x-powered-by');
+app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
 
 const allowedOrigins = [env.FRONTEND_URL].filter(Boolean);
 
@@ -45,6 +48,15 @@ const loginRateLimit = rateLimit({
   skipSuccessfulRequests: true,
 });
 
+// Rate limit for sensitive lookup endpoints: 20 req / 5 min per IP
+const lookupRateLimit = rateLimit({
+  windowMs: 5 * 60 * 1000,
+  max: 20,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Trop de tentatives. Réessayez dans 5 minutes.' },
+});
+
 const authHandler = toNodeHandler(auth);
 app.post('/api/auth/sign-in/email', loginRateLimit);
 app.all(/^\/api\/auth(?:\/.*)?$/, (req, res) => {
@@ -57,12 +69,15 @@ app.get('/api/health', (_req, res) => {
   res.status(200).json({ ok: true, service: 'maison-marnoa-backend' });
 });
 
+app.get('/api/orders/lookup', lookupRateLimit);
+app.post('/api/promos/validate', lookupRateLimit);
+
 app.use('/api/products', productsRouter);
 app.use('/api/orders', ordersRouter);
 app.use('/api/payments', paymentsRouter);
 app.use('/api/receipts', receiptsRouter);
 app.use('/api/promos', promosRouter);
-app.use('/api/admin', adminRouter);
+app.use('/api/admin', requireAdmin, adminRouter);
 app.use('/api/appointments', appointmentsRouter);
 app.use('/api/track', analyticsRouter);
 app.use('/api/shipping', shippingRouter);

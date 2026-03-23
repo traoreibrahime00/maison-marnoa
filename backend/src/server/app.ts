@@ -20,10 +20,18 @@ import { shippingRouter } from './routes/shipping.router';
 
 export const app = express();
 
+// Trust nginx reverse proxy
+app.set('trust proxy', 1);
+
 app.disable('x-powered-by');
 app.use(helmet({ crossOriginResourcePolicy: { policy: 'cross-origin' } }));
 
-const allowedOrigins = [env.FRONTEND_URL].filter(Boolean);
+// Allow both www and non-www
+const allowedOrigins = [
+  env.FRONTEND_URL,
+  env.FRONTEND_URL.replace('https://', 'https://www.'),
+  env.FRONTEND_URL.replace('https://www.', 'https://'),
+].filter(Boolean);
 
 app.use(
   cors({

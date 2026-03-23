@@ -137,7 +137,7 @@ export default function AdminDashboard() {
     <div className="grid gap-6">
 
       {/* KPI Cards */}
-      <div className="grid grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 lg:grid-cols-4 gap-3 lg:gap-4">
         {kpis.map(kpi => (
           <div key={kpi.label} className="rounded-2xl p-5"
             style={{ background: CARD_BG, border: `1px solid ${BORDER}` }}>
@@ -149,7 +149,7 @@ export default function AdminDashboard() {
                 <kpi.icon size={14} color={kpi.color} />
               </div>
             </div>
-            <p style={{ color: TEXT, fontSize: '26px', fontWeight: 800, fontFamily: 'Manrope, sans-serif', lineHeight: 1 }}>
+            <p style={{ color: TEXT, fontSize: 'clamp(18px,3vw,26px)', fontWeight: 800, fontFamily: 'Manrope, sans-serif', lineHeight: 1 }}>
               {kpi.value}
             </p>
           </div>
@@ -174,7 +174,7 @@ export default function AdminDashboard() {
         </div>
       )}
 
-      <div className="grid grid-cols-2 gap-4">
+      <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
         {/* Top Products */}
         {topChartData.length > 0 && (
           <div className="rounded-2xl p-5" style={{ background: CARD_BG, border: `1px solid ${BORDER}` }}>

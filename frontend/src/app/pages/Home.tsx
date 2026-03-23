@@ -248,8 +248,8 @@ export default function Home() {
               {/* Mobile: scroll horizontal / Desktop: grille */}
               {/* Bestseller List */}
         <div className="flex overflow-x-auto gap-4 md:gap-6 px-4 md:px-8 pb-12 snap-x snap-mandatory hide-scrollbar max-w-[1400px] mx-auto">
-          {products.filter(p => p.isBestseller).map((product, i) => (
-            <div key={product.id} className="snap-start min-w-[280px] md:min-w-[320px] max-w-[320px] flex-shrink-0">
+          {recentProducts.map((product, i) => (
+            <div key={product.id} className="snap-start min-w-[160px] md:min-w-[200px] max-w-[200px] flex-shrink-0">
                     <ProductCard product={product} index={i} />
                   </div>
                 ))}

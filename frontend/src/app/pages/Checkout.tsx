@@ -7,7 +7,7 @@ import {
 import { motion, AnimatePresence } from 'motion/react';
 import { useApp, useColors } from '../context/AppContext';
 import { formatPrice } from '../data/products';
-import { buildOrderMessage, openWhatsApp } from '../utils/whatsapp';
+import { buildOrderMessage, WA_NUMBER } from '../utils/whatsapp';
 import { toast } from 'sonner';
 import { apiUrl } from '../lib/api';
 import { trackEvent } from '../lib/analytics';
@@ -131,6 +131,9 @@ export default function Checkout() {
     if (!validate()) return;
     setProcessing(true);
 
+    // Open a blank window synchronously (user gesture context) to bypass mobile popup blocking
+    const waWindow = window.open('', '_blank');
+
     const orderId = `MN-${Math.floor(10000 + Math.random() * 90000)}`;
     const customerAddress = delivery === 'retrait' ? 'Retrait Showroom Marnoa · Cocody' : form.address;
 
@@ -205,9 +208,14 @@ export default function Checkout() {
         updateProfile({ name: form.fullName.trim(), phone: form.phone.trim() });
       }
 
-      // Open WhatsApp with pre-filled order message
+      // Open WhatsApp — inject URL into pre-opened window (bypasses mobile popup blocking)
       const waMessage = buildOrderMessage({ ...payload, orderId: orderRef });
-      openWhatsApp(waMessage);
+      const waUrl = `https://wa.me/${WA_NUMBER}?text=${encodeURIComponent(waMessage)}`;
+      if (waWindow) {
+        waWindow.location.href = waUrl;
+      } else {
+        window.location.href = waUrl;
+      }
 
       setLastOrderId(orderRef);
       setSubmitted(true);

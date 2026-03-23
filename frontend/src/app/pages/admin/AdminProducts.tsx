@@ -81,17 +81,23 @@ export default function AdminProducts() {
     return matchCat && matchSearch;
   });
 
+  const BADGE_FIELDS = [
+    { field: 'isNew' as const,        icon: Sparkles, color: '#C9A227', title: 'Nouveau' },
+    { field: 'isBestseller' as const, icon: Star,     color: '#22c55e', title: 'Best' },
+    { field: 'isFeatured' as const,   icon: Zap,      color: '#a78bfa', title: 'Vedette' },
+  ];
+
   return (
     <>
       {/* Toolbar */}
       <div className="flex flex-wrap items-center gap-3 mb-6">
-        <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl flex-1 min-w-48"
+        <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl flex-1 min-w-0"
           style={{ background: CARD_BG, border: `1px solid ${BORDER}` }}>
           <Search size={14} color={MUTED} />
           <input
             placeholder="Rechercher un produit…"
             value={search} onChange={e => setSearch(e.target.value)}
-            className="bg-transparent outline-none flex-1"
+            className="bg-transparent outline-none flex-1 min-w-0"
             style={{ color: TEXT, fontSize: '13px', fontFamily: 'Manrope, sans-serif' }}
           />
         </div>
@@ -113,49 +119,53 @@ export default function AdminProducts() {
       </div>
 
       {/* Stats */}
-      <div className="grid grid-cols-3 gap-4 mb-6">
+      <div className="grid grid-cols-3 gap-3 mb-6">
         {[
-          { label: 'Total produits', value: products.length, icon: Package },
-          { label: 'Résultats filtrés', value: filtered.length, icon: Search },
-          { label: 'Stock critique (≤3)', value: products.filter(p => p.stock !== null && p.stock <= 3).length, icon: AlertTriangle, warn: true },
+          { label: 'Total', value: products.length, icon: Package },
+          { label: 'Filtrés', value: filtered.length, icon: Search },
+          { label: 'Stock critique', value: products.filter(p => p.stock !== null && p.stock <= 3).length, icon: AlertTriangle, warn: true },
         ].map(({ label, value, icon: Icon, warn }) => (
-          <div key={label} className="rounded-2xl p-4"
+          <div key={label} className="rounded-2xl p-3 lg:p-4"
             style={{ background: CARD_BG, border: `1px solid ${warn && value > 0 ? 'rgba(239,68,68,0.3)' : BORDER}` }}>
-            <div className="flex items-center gap-2 mb-2">
-              <Icon size={14} color={warn && value > 0 ? '#ef4444' : MUTED} />
-              <span style={{ color: MUTED, fontSize: '11px', fontFamily: 'Manrope, sans-serif' }}>{label}</span>
+            <div className="flex items-center gap-2 mb-1">
+              <Icon size={13} color={warn && value > 0 ? '#ef4444' : MUTED} />
+              <span style={{ color: MUTED, fontSize: '10px', fontFamily: 'Manrope, sans-serif' }}>{label}</span>
             </div>
-            <p style={{ color: warn && value > 0 ? '#ef4444' : TEXT, fontSize: '24px', fontWeight: 800, fontFamily: 'Manrope, sans-serif' }}>
+            <p style={{ color: warn && value > 0 ? '#ef4444' : TEXT, fontSize: '22px', fontWeight: 800, fontFamily: 'Manrope, sans-serif' }}>
               {value}
             </p>
           </div>
         ))}
       </div>
 
-      {/* Product Table */}
-      <div className="rounded-2xl overflow-hidden" style={{ border: `1px solid ${BORDER}` }}>
-        <div className="grid gap-0">
-          {/* Header */}
-          <div className="grid grid-cols-[60px_1fr_120px_110px_70px_130px_90px] px-5 py-3"
-            style={{ background: CARD_BG, borderBottom: `1px solid ${BORDER}` }}>
-            {['Photo', 'Produit', 'Catégorie', 'Prix', 'Stock', 'Badges', 'Actions'].map(h => (
-              <span key={h} style={{ color: MUTED, fontSize: '11px', fontWeight: 700, letterSpacing: '0.5px', fontFamily: 'Manrope, sans-serif', textTransform: 'uppercase' }}>
-                {h}
-              </span>
-            ))}
-          </div>
+      {/* Loading */}
+      {loading && (
+        <div className="flex items-center justify-center py-16">
+          <p style={{ color: MUTED, fontFamily: 'Manrope, sans-serif', fontSize: '13px' }}>Chargement…</p>
+        </div>
+      )}
 
-          {/* Loading skeleton */}
-          {loading && (
-            <div className="flex items-center justify-center py-16">
-              <p style={{ color: MUTED, fontFamily: 'Manrope, sans-serif', fontSize: '13px' }}>
-                Chargement des produits…
-              </p>
+      {!loading && filtered.length === 0 && (
+        <div className="flex flex-col items-center justify-center py-16">
+          <Package size={40} color={BORDER} />
+          <p style={{ color: MUTED, marginTop: '12px', fontFamily: 'Manrope, sans-serif', fontSize: '13px' }}>
+            Aucun produit trouvé
+          </p>
+        </div>
+      )}
+
+      {/* ── Desktop Table ── */}
+      {!loading && filtered.length > 0 && (
+        <div className="hidden lg:block rounded-2xl overflow-hidden" style={{ border: `1px solid ${BORDER}` }}>
+          <div className="grid gap-0">
+            <div className="grid grid-cols-[60px_1fr_120px_110px_70px_130px_90px] px-5 py-3"
+              style={{ background: CARD_BG, borderBottom: `1px solid ${BORDER}` }}>
+              {['Photo', 'Produit', 'Catégorie', 'Prix', 'Stock', 'Badges', 'Actions'].map(h => (
+                <span key={h} style={{ color: MUTED, fontSize: '11px', fontWeight: 700, letterSpacing: '0.5px', fontFamily: 'Manrope, sans-serif', textTransform: 'uppercase' }}>
+                  {h}
+                </span>
+              ))}
             </div>
-          )}
-
-          {/* Rows */}
-          {!loading && (
             <AnimatePresence>
               {filtered.map((product, i) => {
                 const stockLow = product.stock !== null && product.stock <= 3;
@@ -164,84 +174,41 @@ export default function AdminProducts() {
                     key={product.id}
                     initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
                     className="grid grid-cols-[60px_1fr_120px_110px_70px_130px_90px] px-5 py-4 items-center"
-                    style={{
-                      borderBottom: i < filtered.length - 1 ? `1px solid ${BORDER}` : 'none',
-                      background: i % 2 === 0 ? BG : CARD_BG,
-                    }}
+                    style={{ borderBottom: i < filtered.length - 1 ? `1px solid ${BORDER}` : 'none', background: i % 2 === 0 ? BG : CARD_BG }}
                   >
-                    {/* Image */}
-                    <div className="w-12 h-12 rounded-xl overflow-hidden flex-shrink-0"
-                      style={{ border: `1px solid ${BORDER}` }}>
-                      <img src={product.image} alt={product.name}
-                        className="w-full h-full object-cover" />
+                    <div className="w-12 h-12 rounded-xl overflow-hidden flex-shrink-0" style={{ border: `1px solid ${BORDER}` }}>
+                      <img src={product.image} alt={product.name} className="w-full h-full object-cover" />
                     </div>
-
-                    {/* Name + collection */}
                     <div className="pr-4">
-                      <p style={{ color: TEXT, fontSize: '13px', fontWeight: 700, fontFamily: 'Manrope, sans-serif' }}>
-                        {product.name}
-                      </p>
-                      <p style={{ color: MUTED, fontSize: '11px', fontFamily: 'Manrope, sans-serif' }}>
-                        {product.collection}
-                      </p>
+                      <p style={{ color: TEXT, fontSize: '13px', fontWeight: 700, fontFamily: 'Manrope, sans-serif' }}>{product.name}</p>
+                      <p style={{ color: MUTED, fontSize: '11px', fontFamily: 'Manrope, sans-serif' }}>{product.collection}</p>
                     </div>
-
-                    {/* Category */}
-                    <span style={{ color: MUTED, fontSize: '12px', fontFamily: 'Manrope, sans-serif', textTransform: 'capitalize' }}>
-                      {product.category}
-                    </span>
-
-                    {/* Price */}
-                    <span style={{ color: GOLD, fontSize: '13px', fontWeight: 700, fontFamily: 'Manrope, sans-serif' }}>
-                      {formatPrice(product.price)}
-                    </span>
-
-                    {/* Stock */}
+                    <span style={{ color: MUTED, fontSize: '12px', fontFamily: 'Manrope, sans-serif', textTransform: 'capitalize' }}>{product.category}</span>
+                    <span style={{ color: GOLD, fontSize: '13px', fontWeight: 700, fontFamily: 'Manrope, sans-serif' }}>{formatPrice(product.price)}</span>
                     <span style={{ color: stockLow ? '#ef4444' : TEXT, fontSize: '13px', fontWeight: stockLow ? 700 : 500, fontFamily: 'Manrope, sans-serif' }}>
                       {product.stock === null ? '∞' : product.stock}
                     </span>
-
-                    {/* Badges — quick toggle */}
                     <div className="flex items-center gap-1">
-                      {([
-                        { field: 'isNew' as const, icon: Sparkles, color: '#C9A227', title: 'Nouveau' },
-                        { field: 'isBestseller' as const, icon: Star, color: '#22c55e', title: 'Bestseller' },
-                        { field: 'isFeatured' as const, icon: Zap, color: '#a78bfa', title: 'En vedette' },
-                      ]).map(({ field, icon: Icon, color, title }) => {
+                      {BADGE_FIELDS.map(({ field, icon: Icon, color, title }) => {
                         const active = product[field];
                         const key = `${product.id}-${field}`;
                         return (
-                          <motion.button
-                            key={field}
-                            whileTap={{ scale: 0.82 }}
-                            title={title}
-                            disabled={toggling === key}
-                            onClick={() => handleToggle(product, field)}
+                          <motion.button key={field} whileTap={{ scale: 0.82 }} title={title}
+                            disabled={toggling === key} onClick={() => handleToggle(product, field)}
                             className="w-7 h-7 rounded-lg flex items-center justify-center"
-                            style={{
-                              background: active ? `${color}20` : 'transparent',
-                              border: `1px solid ${active ? color : BORDER}`,
-                              cursor: toggling === key ? 'wait' : 'pointer',
-                              opacity: toggling === key ? 0.5 : 1,
-                            }}>
+                            style={{ background: active ? `${color}20` : 'transparent', border: `1px solid ${active ? color : BORDER}`, cursor: toggling === key ? 'wait' : 'pointer', opacity: toggling === key ? 0.5 : 1 }}>
                             <Icon size={11} color={active ? color : MUTED} />
                           </motion.button>
                         );
                       })}
                     </div>
-
-                    {/* Actions */}
                     <div className="flex items-center gap-2">
-                      <motion.button
-                        whileTap={{ scale: 0.88 }}
-                        onClick={() => navigate(`/admin/products/${product.id}/edit`)}
+                      <motion.button whileTap={{ scale: 0.88 }} onClick={() => navigate(`/admin/products/${product.id}/edit`)}
                         className="w-8 h-8 rounded-lg flex items-center justify-center"
                         style={{ background: 'rgba(201,162,39,0.1)', border: '1px solid rgba(201,162,39,0.2)', cursor: 'pointer' }}>
                         <Pencil size={13} color="#C9A227" />
                       </motion.button>
-                      <motion.button
-                        whileTap={{ scale: 0.88 }}
-                        onClick={() => setConfirmDelete(product.id)}
+                      <motion.button whileTap={{ scale: 0.88 }} onClick={() => setConfirmDelete(product.id)}
                         className="w-8 h-8 rounded-lg flex items-center justify-center"
                         style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.15)', cursor: 'pointer' }}>
                         <Trash2 size={13} color="#ef4444" />
@@ -251,24 +218,85 @@ export default function AdminProducts() {
                 );
               })}
             </AnimatePresence>
-          )}
-
-          {!loading && filtered.length === 0 && (
-            <div className="flex flex-col items-center justify-center py-16">
-              <Package size={40} color={BORDER} />
-              <p style={{ color: MUTED, marginTop: '12px', fontFamily: 'Manrope, sans-serif', fontSize: '13px' }}>
-                Aucun produit trouvé
-              </p>
-            </div>
-          )}
+          </div>
         </div>
-      </div>
+      )}
+
+      {/* ── Mobile Cards ── */}
+      {!loading && filtered.length > 0 && (
+        <div className="lg:hidden flex flex-col gap-3">
+          <AnimatePresence>
+            {filtered.map(product => {
+              const stockLow = product.stock !== null && product.stock <= 3;
+              return (
+                <motion.div key={product.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                  className="rounded-2xl overflow-hidden"
+                  style={{ background: CARD_BG, border: `1px solid ${BORDER}` }}>
+                  <div className="flex items-center gap-3 p-3">
+                    {/* Image */}
+                    <div className="w-14 h-14 rounded-xl overflow-hidden flex-shrink-0" style={{ border: `1px solid ${BORDER}` }}>
+                      <img src={product.image} alt={product.name} className="w-full h-full object-cover" />
+                    </div>
+                    {/* Info */}
+                    <div className="flex-1 min-w-0">
+                      <p style={{ color: TEXT, fontSize: '13px', fontWeight: 700, fontFamily: 'Manrope, sans-serif' }} className="truncate">
+                        {product.name}
+                      </p>
+                      <p style={{ color: MUTED, fontSize: '11px', fontFamily: 'Manrope, sans-serif' }}>
+                        {product.collection} · <span style={{ textTransform: 'capitalize' }}>{product.category}</span>
+                      </p>
+                      <div className="flex items-center gap-3 mt-1">
+                        <span style={{ color: GOLD, fontSize: '13px', fontWeight: 800, fontFamily: 'Manrope, sans-serif' }}>
+                          {formatPrice(product.price)}
+                        </span>
+                        <span style={{ color: stockLow ? '#ef4444' : MUTED, fontSize: '11px', fontWeight: stockLow ? 700 : 500, fontFamily: 'Manrope, sans-serif' }}>
+                          Stock : {product.stock === null ? '∞' : product.stock}
+                          {stockLow && ' ⚠️'}
+                        </span>
+                      </div>
+                    </div>
+                    {/* Actions */}
+                    <div className="flex flex-col gap-2 flex-shrink-0">
+                      <motion.button whileTap={{ scale: 0.88 }} onClick={() => navigate(`/admin/products/${product.id}/edit`)}
+                        className="w-9 h-9 rounded-xl flex items-center justify-center"
+                        style={{ background: 'rgba(201,162,39,0.1)', border: '1px solid rgba(201,162,39,0.2)', cursor: 'pointer' }}>
+                        <Pencil size={14} color="#C9A227" />
+                      </motion.button>
+                      <motion.button whileTap={{ scale: 0.88 }} onClick={() => setConfirmDelete(product.id)}
+                        className="w-9 h-9 rounded-xl flex items-center justify-center"
+                        style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.15)', cursor: 'pointer' }}>
+                        <Trash2 size={14} color="#ef4444" />
+                      </motion.button>
+                    </div>
+                  </div>
+                  {/* Badge toggles */}
+                  <div className="flex items-center gap-2 px-3 pb-3">
+                    {BADGE_FIELDS.map(({ field, icon: Icon, color, title }) => {
+                      const active = product[field];
+                      const key = `${product.id}-${field}`;
+                      return (
+                        <motion.button key={field} whileTap={{ scale: 0.88 }}
+                          disabled={toggling === key} onClick={() => handleToggle(product, field)}
+                          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg"
+                          style={{ background: active ? `${color}18` : 'transparent', border: `1px solid ${active ? color : BORDER}`, cursor: toggling === key ? 'wait' : 'pointer', opacity: toggling === key ? 0.5 : 1, fontFamily: 'Manrope, sans-serif' }}>
+                          <Icon size={11} color={active ? color : MUTED} />
+                          <span style={{ color: active ? color : MUTED, fontSize: '10px', fontWeight: 700 }}>{title}</span>
+                        </motion.button>
+                      );
+                    })}
+                  </div>
+                </motion.div>
+              );
+            })}
+          </AnimatePresence>
+        </div>
+      )}
 
       {/* FAB add */}
       <motion.button
         whileTap={{ scale: 0.94 }} whileHover={{ scale: 1.04 }}
         onClick={() => navigate('/admin/products/new')}
-        className="fixed bottom-8 right-8 w-14 h-14 rounded-2xl flex items-center justify-center"
+        className="fixed bottom-6 right-6 w-14 h-14 rounded-2xl flex items-center justify-center"
         style={{ background: 'linear-gradient(135deg,#C9A227,#E8C84A)', boxShadow: '0 8px 24px rgba(201,162,39,0.4)', border: 'none', cursor: 'pointer' }}>
         <Plus size={22} color="#fff" />
       </motion.button>

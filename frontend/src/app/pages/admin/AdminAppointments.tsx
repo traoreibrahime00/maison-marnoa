@@ -155,38 +155,81 @@ export default function AdminAppointments() {
             ) : appts.length === 0 ? (
               <p style={S.muted}>Aucun rendez-vous pour l'instant.</p>
             ) : (
-              <div className="rounded-xl overflow-hidden" style={{ border: `1px solid ${BORDER}` }}>
-                {/* Header */}
-                <div className="grid px-4 py-2.5" style={{ gridTemplateColumns: '100px 1fr 1fr 100px 130px 120px', background: BG, borderBottom: `1px solid ${BORDER}` }}>
-                  {['Réf', 'Client', 'Prestation', 'Date', 'Créneau', 'Statut'].map(h => (
-                    <span key={h} style={{ ...S.muted, fontWeight: 700, letterSpacing: '0.5px', fontSize: '10px', textTransform: 'uppercase' }}>{h}</span>
-                  ))}
+              <>
+                {/* ── Desktop Table ── */}
+                <div className="hidden lg:block rounded-xl overflow-hidden" style={{ border: `1px solid ${BORDER}` }}>
+                  <div className="grid px-4 py-2.5" style={{ gridTemplateColumns: '100px 1fr 1fr 100px 130px 120px', background: BG, borderBottom: `1px solid ${BORDER}` }}>
+                    {['Réf', 'Client', 'Prestation', 'Date', 'Créneau', 'Statut'].map(h => (
+                      <span key={h} style={{ ...S.muted, fontWeight: 700, letterSpacing: '0.5px', fontSize: '10px', textTransform: 'uppercase' }}>{h}</span>
+                    ))}
+                  </div>
+                  {appts.map((appt, idx) => {
+                    const meta = STATUS_COLORS[appt.status] ?? STATUS_COLORS.PENDING;
+                    return (
+                      <div key={appt.id} className="grid items-center px-4 py-3 gap-2"
+                        style={{ gridTemplateColumns: '100px 1fr 1fr 100px 130px 120px', background: idx % 2 ? BG : CARD_BG, borderBottom: `1px solid ${BORDER}` }}>
+                        <span style={{ color: GOLD, fontSize: '11px', fontWeight: 700, fontFamily: FONT }}>{appt.ref}</span>
+                        <div>
+                          <p style={{ ...S.text, fontSize: '12px', fontWeight: 600 }}>{appt.customerName}</p>
+                          <p style={{ ...S.muted, fontSize: '10px' }}>{appt.customerPhone}</p>
+                        </div>
+                        <span style={{ ...S.text, fontSize: '12px' }}>{appt.serviceLabel}</span>
+                        <span style={{ ...S.muted }}>{appt.date}</span>
+                        <span style={{ ...S.text, fontSize: '12px' }}>{appt.slot}</span>
+                        <div className="relative">
+                          <StatusDropdown
+                            current={appt.status}
+                            loading={updatingId === appt.ref}
+                            onChange={(s) => handleStatusChange(appt.ref, s)}
+                            meta={meta}
+                          />
+                        </div>
+                      </div>
+                    );
+                  })}
                 </div>
-                {appts.map((appt, idx) => {
-                  const meta = STATUS_COLORS[appt.status] ?? STATUS_COLORS.PENDING;
-                  return (
-                    <div key={appt.id} className="grid items-center px-4 py-3 gap-2"
-                      style={{ gridTemplateColumns: '100px 1fr 1fr 100px 130px 120px', background: idx % 2 ? BG : CARD_BG, borderBottom: `1px solid ${BORDER}` }}>
-                      <span style={{ color: GOLD, fontSize: '11px', fontWeight: 700, fontFamily: FONT }}>{appt.ref}</span>
-                      <div>
-                        <p style={{ ...S.text, fontSize: '12px', fontWeight: 600 }}>{appt.customerName}</p>
-                        <p style={{ ...S.muted, fontSize: '10px' }}>{appt.customerPhone}</p>
+
+                {/* ── Mobile Cards ── */}
+                <div className="lg:hidden flex flex-col gap-3">
+                  {appts.map(appt => {
+                    const meta = STATUS_COLORS[appt.status] ?? STATUS_COLORS.PENDING;
+                    return (
+                      <div key={appt.id} className="rounded-xl p-4 flex flex-col gap-3"
+                        style={{ background: BG, border: `1px solid ${BORDER}` }}>
+                        {/* Header row */}
+                        <div className="flex items-start justify-between gap-2">
+                          <div className="flex-1 min-w-0">
+                            <p style={{ color: GOLD, fontSize: '11px', fontWeight: 700, fontFamily: FONT }}>{appt.ref}</p>
+                            <p style={{ ...S.text, fontSize: '14px', fontWeight: 700 }}>{appt.customerName}</p>
+                            <a href={`tel:${appt.customerPhone}`} style={{ ...S.muted, textDecoration: 'none' }}>{appt.customerPhone}</a>
+                          </div>
+                          <StatusDropdown
+                            current={appt.status}
+                            loading={updatingId === appt.ref}
+                            onChange={(s) => handleStatusChange(appt.ref, s)}
+                            meta={meta}
+                          />
+                        </div>
+                        {/* Details */}
+                        <div className="grid grid-cols-3 gap-2">
+                          <div className="rounded-lg px-3 py-2" style={{ background: CARD_BG }}>
+                            <p style={{ ...S.muted, fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Service</p>
+                            <p style={{ ...S.text, fontSize: '12px', fontWeight: 600, marginTop: 2 }}>{appt.serviceLabel}</p>
+                          </div>
+                          <div className="rounded-lg px-3 py-2" style={{ background: CARD_BG }}>
+                            <p style={{ ...S.muted, fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Date</p>
+                            <p style={{ ...S.text, fontSize: '12px', fontWeight: 600, marginTop: 2 }}>{appt.date}</p>
+                          </div>
+                          <div className="rounded-lg px-3 py-2" style={{ background: CARD_BG }}>
+                            <p style={{ ...S.muted, fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Créneau</p>
+                            <p style={{ ...S.text, fontSize: '12px', fontWeight: 600, marginTop: 2 }}>{appt.slot}</p>
+                          </div>
+                        </div>
                       </div>
-                      <span style={{ ...S.text, fontSize: '12px' }}>{appt.serviceLabel}</span>
-                      <span style={{ ...S.muted }}>{appt.date}</span>
-                      <span style={{ ...S.text, fontSize: '12px' }}>{appt.slot}</span>
-                      <div className="relative">
-                        <StatusDropdown
-                          current={appt.status}
-                          loading={updatingId === appt.ref}
-                          onChange={(s) => handleStatusChange(appt.ref, s)}
-                          meta={meta}
-                        />
-                      </div>
-                    </div>
-                  );
-                })}
-              </div>
+                    );
+                  })}
+                </div>
+              </>
             )}
           </motion.div>
         )}

@@ -103,7 +103,7 @@ export default function Home() {
         className="lg:hidden sticky top-0 z-40 px-5 pt-12 pb-4 flex items-center justify-between"
         style={{ background: `${BG}F5`, backdropFilter: 'blur(20px)', borderBottom: `1px solid ${BORDER}` }}
       >
-        <MaisonMarnoaLogo variant="dark" size="md" />
+        <MaisonMarnoaLogo variant="auto" size="md" />
         <div className="flex items-center gap-3">
           <motion.button onClick={() => navigate('/search')} className="w-10 h-10 flex items-center justify-center rounded-full" style={{ background: CARD_BG, border: `1px solid ${BORDER}` }} whileTap={{ scale: 0.88 }}>
             <Search size={18} color={MUTED} />

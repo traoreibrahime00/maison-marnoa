@@ -102,7 +102,7 @@ export function DesktopHeader() {
         whileHover={{ scale: 1.03 }}
         transition={{ type: 'spring', stiffness: 400, damping: 20 }}
       >
-        <MaisonMarnoaLogo variant="dark" size={scrolled ? 'sm' : 'sm'} />
+        <MaisonMarnoaLogo variant="auto" size="sm" />
       </motion.button>
 
       {/* Right: nav + icons */}

@@ -72,7 +72,7 @@ export default function AdminLayout() {
     <>
       {/* Logo */}
       <div className="px-6 py-6 border-b" style={{ borderColor: BORDER }}>
-        <MaisonMarnoaLogo variant={darkMode ? 'light' : 'dark'} size="sm" />
+        <MaisonMarnoaLogo variant="auto" size="sm" />
         <p style={{ color: GOLD, fontSize: '9px', fontWeight: 700, letterSpacing: '2px', textTransform: 'uppercase', marginTop: '6px' }}>
           Back-office
         </p>

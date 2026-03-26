@@ -1,6 +1,6 @@
 import { useState, useEffect } from 'react';
 import { useNavigate, useSearchParams } from 'react-router';
-import { ArrowLeft, Eye, EyeOff, Mail, Lock, User, Check, AlertCircle, ArrowRight } from 'lucide-react';
+import { ArrowLeft, Eye, EyeOff, Mail, Lock, User, Phone, Check, AlertCircle, ArrowRight } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useApp, useColors } from '../context/AppContext';
 import { IMAGES } from '../data/products';
@@ -27,7 +27,7 @@ export default function Login() {
   const [showPwd, setShowPwd]   = useState(false);
   const [loading, setLoading]   = useState(false);
   const [agreed, setAgreed]     = useState(false);
-  const [form, setForm]         = useState({ name: '', email: '', password: '' });
+  const [form, setForm]         = useState({ name: '', email: '', password: '', phone: '' });
   const [errors, setErrors]     = useState<Record<string, string>>({});
   const [resetSent, setResetSent] = useState(false);
   const [googleLoading, setGoogleLoading] = useState(false);
@@ -37,6 +37,7 @@ export default function Login() {
     if (mode === 'register' && !form.name.trim())        e.name = 'Nom requis';
     if (!form.email.trim() || !form.email.includes('@')) e.email = 'Email invalide';
     if (!form.password || form.password.length < 6)      e.password = 'Mot de passe trop court (min. 6 caractères)';
+    if (mode === 'register' && form.phone.replace(/\s/g, '').length < 9) e.phone = 'Numéro de téléphone requis';
     if (mode === 'register' && !agreed)                  e.agreed = 'Acceptez les conditions';
     setErrors(e);
     return Object.keys(e).length === 0;
@@ -49,7 +50,7 @@ export default function Login() {
     try {
       const endpoint = mode === 'register' ? '/api/auth/sign-up/email' : '/api/auth/sign-in/email';
       const payload = mode === 'register'
-        ? { name: form.name.trim(), email: form.email.trim(), password: form.password }
+        ? { name: form.name.trim(), email: form.email.trim(), password: form.password, phone: form.phone.trim() }
         : { email: form.email.trim(), password: form.password };
 
       const res = await fetch(apiUrl(endpoint), {
@@ -171,7 +172,7 @@ export default function Login() {
             {([{ id: 'login', label: 'Connexion' }, { id: 'register', label: 'Inscription' }] as const).map(tab => (
               <motion.button
                 key={tab.id}
-                onClick={() => { setMode(tab.id); setErrors({}); setResetSent(false); setForm({ name: '', email: '', password: '' }); }}
+                onClick={() => { setMode(tab.id); setErrors({}); setResetSent(false); setForm({ name: '', email: '', password: '', phone: '' }); }}
                 className="flex-1 py-3 rounded-xl"
                 whileTap={{ scale: 0.97 }}
                 style={{
@@ -369,6 +370,23 @@ export default function Login() {
                   </div>
                   {errors.email && <p style={{ color: '#ef4444', fontSize: '11px', marginTop: '4px' }}>{errors.email}</p>}
                 </div>
+
+                {/* Phone (register only, required) */}
+                {mode === 'register' && (
+                  <div>
+                    <label style={{ color: MUTED, fontSize: '11px', fontWeight: 600, letterSpacing: '0.5px', display: 'block', marginBottom: '8px' }}>Numéro de téléphone</label>
+                    <div className="flex items-center gap-3 px-4 py-3.5 rounded-2xl" style={{ background: CARD_BG, border: `1px solid ${errors.phone ? '#ef4444' : BORDER}` }}>
+                      <Phone size={16} color={MUTED} />
+                      <input
+                        type="tel" placeholder="+225 07 00 00 00 00" autoComplete="tel"
+                        value={form.phone} onChange={e => { setForm(f => ({ ...f, phone: e.target.value })); setErrors(p => ({ ...p, phone: undefined })); }}
+                        className="flex-1 bg-transparent outline-none"
+                        style={{ color: TEXT, fontFamily: 'Manrope, sans-serif', fontSize: '14px' }}
+                      />
+                    </div>
+                    {errors.phone && <p style={{ color: '#ef4444', fontSize: '11px', marginTop: '4px' }}>{errors.phone}</p>}
+                  </div>
+                )}
 
                 {/* Password */}
                 <div>

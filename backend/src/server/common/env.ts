@@ -22,6 +22,7 @@ export const env = {
   ADMIN_WHATSAPP_NUMBER: process.env.ADMIN_WHATSAPP_NUMBER || '',
   CALLMEBOT_APIKEY: process.env.CALLMEBOT_APIKEY || '',
   WAVE_API_KEY: process.env.WAVE_API_KEY || '',
+  WAVE_WEBHOOK_SECRET: process.env.WAVE_WEBHOOK_SECRET || '',  // Secret pour vérifier la signature des webhooks Wave
   WAVE_MERCHANT_URL: process.env.WAVE_MERCHANT_URL || '',   // ex: https://pay.wave.com/m/M_ci_xxx/c/ci/
   WAVE_SUCCESS_URL: process.env.WAVE_SUCCESS_URL || 'http://localhost:5173/order-confirmation',
   WAVE_ERROR_URL: process.env.WAVE_ERROR_URL || 'http://localhost:5173/checkout',

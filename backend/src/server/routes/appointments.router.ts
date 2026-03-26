@@ -81,7 +81,7 @@ appointmentsRouter.put(
   })
 );
 
-// GET /api/appointments — list by contact or all (admin)
+// GET /api/appointments — list by contact (public) or all (admin only)
 appointmentsRouter.get(
   '/',
   asyncHandler(async (req, res) => {
@@ -89,13 +89,22 @@ appointmentsRouter.get(
     const email = String(req.query.email || '').trim();
     if (phone || email) {
       const appts = await appointmentsService.listByContact(phone, email);
-      res.json(appts);
-    } else {
-      const limit = Math.min(Number(req.query.limit) || 50, 200);
-      const offset = Number(req.query.offset) || 0;
-      const appts = await appointmentsService.listAll(limit, offset);
-      res.json(appts);
+      return res.json(appts);
     }
+    // Listing all appointments requires admin
+    throw new HttpError(401, 'Unauthorized');
+  })
+);
+
+// GET /api/appointments/all — admin list with pagination
+appointmentsRouter.get(
+  '/all',
+  requireAdmin,
+  asyncHandler(async (req, res) => {
+    const limit = Math.min(Number(req.query.limit) || 50, 200);
+    const offset = Number(req.query.offset) || 0;
+    const appts = await appointmentsService.listAll(limit, offset);
+    res.json(appts);
   })
 );
 

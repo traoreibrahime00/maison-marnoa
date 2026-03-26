@@ -37,7 +37,17 @@ const allowedOrigins = [
 app.use(
   cors({
     origin: (origin, callback) => {
-      if (!origin || allowedOrigins.includes(origin)) {
+      // En production, rejeter les requêtes sans Origin (hors health check)
+      if (!origin) {
+        if (env.NODE_ENV === 'production') {
+          callback(new Error('Origin header required'));
+          return;
+        }
+        // Dev : autoriser sans Origin (Postman, curl, etc.)
+        callback(null, true);
+        return;
+      }
+      if (allowedOrigins.includes(origin)) {
         callback(null, true);
         return;
       }
@@ -66,6 +76,24 @@ const lookupRateLimit = rateLimit({
   message: { error: 'Trop de tentatives. Réessayez dans 5 minutes.' },
 });
 
+// Rate limit on order creation: 10 commandes / 10 min par IP (anti-spam)
+const orderCreateRateLimit = rateLimit({
+  windowMs: 10 * 60 * 1000,
+  max: 10,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Trop de commandes. Réessayez dans 10 minutes.' },
+});
+
+// Rate limit on appointment creation: 5 RDV / 10 min par IP
+const appointmentCreateRateLimit = rateLimit({
+  windowMs: 10 * 60 * 1000,
+  max: 5,
+  standardHeaders: true,
+  legacyHeaders: false,
+  message: { error: 'Trop de demandes de RDV. Réessayez dans 10 minutes.' },
+});
+
 const authHandler = toNodeHandler(auth);
 app.post('/api/auth/sign-in/email', loginRateLimit);
 app.all(/^\/api\/auth(?:\/.*)?$/, (req, res) => {
@@ -80,6 +108,9 @@ app.get('/api/health', (_req, res) => {
 
 app.get('/api/orders/lookup', lookupRateLimit);
 app.post('/api/promos/validate', lookupRateLimit);
+app.post('/api/orders/checkout', orderCreateRateLimit);
+app.post('/api/orders', orderCreateRateLimit);
+app.post('/api/appointments', appointmentCreateRateLimit);
 
 app.use('/api/products', productsRouter);
 app.use('/api/orders', ordersRouter);
@@ -107,10 +138,20 @@ app.use((error: unknown, _req: express.Request, res: express.Response, _next: ex
       res.status(404).json({ error: 'Resource not found' });
       return;
     }
-    res.status(400).json({ error: error.message, code: error.code });
+    if (error.code === 'P2002') {
+      res.status(409).json({ error: 'Resource already exists' });
+      return;
+    }
+    // Ne jamais exposer les détails Prisma en prod
+    console.error('[PrismaError]', error.code, error.message);
+    res.status(400).json({ error: 'Invalid request' });
     return;
   }
 
-  console.error('[ExpressError]', error);
+  if (env.NODE_ENV === 'production') {
+    console.error('[ExpressError]', error instanceof Error ? error.message : 'Unknown error');
+  } else {
+    console.error('[ExpressError]', error);
+  }
   res.status(500).json({ error: 'Internal Server Error' });
 });

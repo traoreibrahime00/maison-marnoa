@@ -1,4 +1,5 @@
 import { Prisma } from '@prisma/client';
+import { randomBytes } from 'crypto';
 import { ordersRepository } from './orders.repository';
 import type { AdminOrdersFilterInput, OrderCreateInput, OrderStatus } from './orders.types';
 import { receiptsService } from '../receipts/receipts.service';
@@ -10,8 +11,9 @@ import { promosRepository } from '../promos/promos.repository';
 
 function generateTempPassword(): string {
   const chars = 'ABCDEFGHJKLMNPQRSTUVWXYZ23456789';
+  const bytes = randomBytes(8);
   let pw = '';
-  for (let i = 0; i < 8; i++) pw += chars[Math.floor(Math.random() * chars.length)];
+  for (let i = 0; i < 8; i++) pw += chars[bytes[i] % chars.length];
   return pw;
 }
 

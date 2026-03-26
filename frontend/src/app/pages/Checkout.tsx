@@ -1,8 +1,8 @@
-import { useEffect, useState } from 'react';
+import { useEffect, useState, useCallback } from 'react';
 import { useNavigate } from 'react-router';
 import {
   ArrowLeft, MapPin, User, Phone, FileText, ChevronDown, ChevronUp,
-  Gift, Package, MessageCircle, Tag, X, Check,
+  Gift, Package, MessageCircle, Tag, X, Check, Navigation, Loader,
 } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { useApp, useColors } from '../context/AppContext';
@@ -23,7 +23,23 @@ const FALLBACK_ZONES: ShippingZone[] = [
   { id: 'retrait',  name: 'Retrait Showroom',     zoneKey: 'retrait',  description: 'Cocody · Gratuit',   icon: '🏪', price: 0,    isFree: true  },
 ];
 
-interface FormData { fullName: string; phone: string; address: string; note: string; }
+// ── Communes & villes CI ─────────────────────────────────────────
+const LOCATION_GROUPS = [
+  {
+    label: 'ABIDJAN — COMMUNES',
+    items: ['Abobo', 'Adjamé', 'Attécoubé', 'Bingerville', 'Cocody', 'Koumassi', 'Marcory', 'Plateau', 'Port-Bouët', 'Treichville', 'Yopougon', 'Anyama', 'Songon'],
+  },
+  {
+    label: 'GRAND ABIDJAN',
+    items: ['Grand-Bassam', 'Jacqueville', 'Dabou'],
+  },
+  {
+    label: 'INTÉRIEUR DU PAYS',
+    items: ['Abengourou', 'Aboisso', 'Adzopé', 'Agboville', 'Bouaké', 'Bondoukou', 'Daloa', 'Dimbokro', 'Divo', 'Gagnoa', 'Grand-Lahou', 'Korhogo', 'Man', 'Odienné', 'San-Pédro', 'Séguéla', 'Soubré', 'Tiassalé', 'Touba', 'Yamoussoukro'],
+  },
+] as const;
+
+interface FormData { fullName: string; phone: string; commune: string; address: string; note: string; }
 
 export default function Checkout() {
   const navigate = useNavigate();
@@ -33,7 +49,9 @@ export default function Checkout() {
   } = useApp();
   const { BG, CARD_BG, BORDER, TEXT, MUTED, GOLD } = useColors();
 
-  const [form, setForm]         = useState<FormData>({ fullName: '', phone: '+225 ', address: '', note: '' });
+  const [form, setForm]         = useState<FormData>({ fullName: '', phone: '+225 ', commune: '', address: '', note: '' });
+  const [gpsCoords, setGpsCoords] = useState<{ lat: number; lon: number } | null>(null);
+  const [gpsLoading, setGpsLoading] = useState(false);
   const [errors, setErrors]     = useState<Partial<FormData>>({});
   const [delivery, setDelivery] = useState('abidjan');
   const [zones, setZones]       = useState<ShippingZone[]>(FALLBACK_ZONES);
@@ -49,6 +67,46 @@ export default function Checkout() {
   const [promoDiscount, setPromoDiscount] = useState(0); // percentage
   const [promoError,    setPromoError]    = useState('');
   const [promoLoading,  setPromoLoading]  = useState(false);
+
+  const detectGPS = useCallback(() => {
+    if (!navigator.geolocation) {
+      toast.error('GPS non supporté', { description: 'Votre navigateur ne supporte pas la géolocalisation.' });
+      return;
+    }
+    setGpsLoading(true);
+    navigator.geolocation.getCurrentPosition(
+      async (pos) => {
+        const { latitude: lat, longitude: lon } = pos.coords;
+        setGpsCoords({ lat, lon });
+        try {
+          const r = await fetch(
+            `https://nominatim.openstreetmap.org/reverse?lat=${lat}&lon=${lon}&format=json&accept-language=fr`,
+          );
+          const d = await r.json() as { address?: Record<string, string> };
+          const a = d.address ?? {};
+          // Try to match commune
+          const communeRaw = a.suburb || a.city_district || a.neighbourhood || a.quarter || a.city || '';
+          const allCities = LOCATION_GROUPS.flatMap(g => g.items);
+          const matched = allCities.find(c =>
+            communeRaw.toLowerCase().includes(c.toLowerCase()) ||
+            c.toLowerCase().includes(communeRaw.toLowerCase().split(' ')[0])
+          );
+          if (matched) setForm(p => ({ ...p, commune: matched }));
+          // Fill address with quartier + road
+          const road = a.road || a.pedestrian || '';
+          const suburb = a.suburb || a.neighbourhood || a.quarter || '';
+          const parts = [road, suburb].filter(Boolean);
+          if (parts.length) setForm(p => ({ ...p, address: parts.join(', ') }));
+        } catch { /* non-blocking */ }
+        setGpsLoading(false);
+      },
+      () => {
+        toast.error('GPS indisponible', { description: 'Autorisez la géolocalisation ou saisissez votre adresse manuellement.' });
+        setGpsLoading(false);
+      },
+      { timeout: 10000, enableHighAccuracy: true },
+    );
+  }, []);
 
   // Pre-fill from logged-in user
   useEffect(() => {
@@ -122,6 +180,7 @@ export default function Checkout() {
     const e: Partial<FormData> = {};
     if (!form.fullName.trim()) e.fullName = 'Nom requis';
     if (form.phone.replace(/\s/g, '').length < 9) e.phone = 'Téléphone requis';
+    if (delivery !== 'retrait' && !form.commune.trim()) e.commune = 'Commune / ville requise';
     if (delivery !== 'retrait' && !form.address.trim()) e.address = 'Adresse requise';
     setErrors(e);
     return Object.keys(e).length === 0;
@@ -135,7 +194,9 @@ export default function Checkout() {
     const waWindow = window.open('', '_blank');
 
     const orderId = `MN-${Math.floor(10000 + Math.random() * 90000)}`;
-    const customerAddress = delivery === 'retrait' ? 'Retrait Showroom Marnoa · Cocody' : form.address;
+    const customerAddress = delivery === 'retrait'
+      ? 'Retrait Showroom Marnoa · Cocody'
+      : [form.commune, form.address].filter(Boolean).join(', ');
 
     const payload = {
       orderId,
@@ -339,24 +400,110 @@ export default function Checkout() {
 
               {/* Address — hidden for showroom pickup */}
               {delivery !== 'retrait' && (
-                <div>
-                  <label style={{ color: MUTED, fontSize: '11px', fontWeight: 700, letterSpacing: '1px', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>
-                    Adresse de livraison
-                  </label>
-                  <div className="flex items-start gap-3 px-4 py-3 rounded-2xl"
-                    style={{ background: BG, border: `1.5px solid ${errors.address ? '#ef4444' : BORDER}` }}>
-                    <MapPin size={15} color={MUTED} className="mt-0.5 flex-shrink-0" />
-                    <textarea
-                      placeholder="Quartier, rue, numéro..."
-                      value={form.address}
-                      onChange={e => { setForm(p => ({ ...p, address: e.target.value })); setErrors(p => ({ ...p, address: undefined })); }}
-                      rows={2}
-                      className="flex-1 bg-transparent outline-none resize-none"
-                      style={{ color: TEXT, fontFamily: 'Manrope, sans-serif', fontSize: '14px', lineHeight: 1.5 }}
-                    />
+                <>
+                  {/* Commune / Ville selector */}
+                  <div>
+                    <label style={{ color: MUTED, fontSize: '11px', fontWeight: 700, letterSpacing: '1px', textTransform: 'uppercase', display: 'block', marginBottom: 6 }}>
+                      Commune / Ville
+                    </label>
+                    <div className="flex items-center gap-3 px-4 py-3 rounded-2xl"
+                      style={{ background: BG, border: `1.5px solid ${errors.commune ? '#ef4444' : BORDER}` }}>
+                      <MapPin size={15} color={MUTED} className="flex-shrink-0" />
+                      <select
+                        value={form.commune}
+                        onChange={e => { setForm(p => ({ ...p, commune: e.target.value })); setErrors(p => ({ ...p, commune: undefined })); }}
+                        className="flex-1 bg-transparent outline-none"
+                        style={{ color: form.commune ? TEXT : MUTED, fontFamily: 'Manrope, sans-serif', fontSize: '14px', border: 'none', appearance: 'none', WebkitAppearance: 'none' }}
+                      >
+                        <option value="" disabled>Choisir une commune ou ville…</option>
+                        {LOCATION_GROUPS.map(group => (
+                          <optgroup key={group.label} label={group.label}>
+                            {group.items.map(city => (
+                              <option key={city} value={city}>{city}</option>
+                            ))}
+                          </optgroup>
+                        ))}
+                      </select>
+                      <ChevronDown size={14} color={MUTED} className="flex-shrink-0 pointer-events-none" />
+                    </div>
+                    {errors.commune && <p style={{ color: '#ef4444', fontSize: '11px', marginTop: 4 }}>{errors.commune}</p>}
                   </div>
-                  {errors.address && <p style={{ color: '#ef4444', fontSize: '11px', marginTop: 4 }}>{errors.address}</p>}
-                </div>
+
+                  {/* Street address + GPS */}
+                  <div>
+                    <div className="flex items-center justify-between mb-1.5">
+                      <label style={{ color: MUTED, fontSize: '11px', fontWeight: 700, letterSpacing: '1px', textTransform: 'uppercase' }}>
+                        Quartier / Rue
+                      </label>
+                      <motion.button
+                        type="button"
+                        onClick={detectGPS}
+                        disabled={gpsLoading}
+                        whileTap={{ scale: 0.93 }}
+                        className="flex items-center gap-1.5 px-3 py-1.5 rounded-full"
+                        style={{
+                          background: gpsCoords ? 'rgba(34,197,94,0.1)' : `rgba(201,162,39,0.1)`,
+                          border: `1px solid ${gpsCoords ? 'rgba(34,197,94,0.3)' : 'rgba(201,162,39,0.3)'}`,
+                          color: gpsCoords ? '#22c55e' : GOLD,
+                          fontSize: '11px', fontWeight: 700, fontFamily: 'Manrope, sans-serif',
+                        }}
+                      >
+                        {gpsLoading
+                          ? <Loader size={11} className="animate-spin" />
+                          : <Navigation size={11} />}
+                        {gpsLoading ? 'Détection…' : gpsCoords ? 'Position détectée' : 'Ma position GPS'}
+                      </motion.button>
+                    </div>
+
+                    <div className="flex items-start gap-3 px-4 py-3 rounded-2xl"
+                      style={{ background: BG, border: `1.5px solid ${errors.address ? '#ef4444' : BORDER}` }}>
+                      <MapPin size={15} color={MUTED} className="mt-0.5 flex-shrink-0" />
+                      <textarea
+                        placeholder="Quartier, rue, repère…"
+                        value={form.address}
+                        onChange={e => { setForm(p => ({ ...p, address: e.target.value })); setErrors(p => ({ ...p, address: undefined })); }}
+                        rows={2}
+                        className="flex-1 bg-transparent outline-none resize-none"
+                        style={{ color: TEXT, fontFamily: 'Manrope, sans-serif', fontSize: '14px', lineHeight: 1.5 }}
+                      />
+                    </div>
+                    {errors.address && <p style={{ color: '#ef4444', fontSize: '11px', marginTop: 4 }}>{errors.address}</p>}
+
+                    {/* OSM map preview after GPS detection */}
+                    <AnimatePresence>
+                      {gpsCoords && (
+                        <motion.div
+                          initial={{ opacity: 0, height: 0, marginTop: 0 }}
+                          animate={{ opacity: 1, height: 'auto', marginTop: 10 }}
+                          exit={{ opacity: 0, height: 0, marginTop: 0 }}
+                          transition={{ duration: 0.25 }}
+                          className="overflow-hidden rounded-2xl"
+                          style={{ border: `1px solid rgba(34,197,94,0.25)` }}
+                        >
+                          <div className="flex items-center gap-2 px-3 py-2" style={{ background: 'rgba(34,197,94,0.06)', borderBottom: '1px solid rgba(34,197,94,0.15)' }}>
+                            <Navigation size={11} color="#22c55e" />
+                            <span style={{ color: '#22c55e', fontSize: '10px', fontWeight: 700, fontFamily: 'Manrope, sans-serif' }}>
+                              Position GPS confirmée · {gpsCoords.lat.toFixed(5)}, {gpsCoords.lon.toFixed(5)}
+                            </span>
+                            <button
+                              onClick={() => { setGpsCoords(null); }}
+                              className="ml-auto"
+                              style={{ background: 'none', border: 'none', cursor: 'pointer', padding: 2 }}
+                            >
+                              <X size={11} color="#22c55e" />
+                            </button>
+                          </div>
+                          <iframe
+                            src={`https://www.openstreetmap.org/export/embed.html?bbox=${gpsCoords.lon - 0.008},${gpsCoords.lat - 0.008},${gpsCoords.lon + 0.008},${gpsCoords.lat + 0.008}&layer=mapnik&marker=${gpsCoords.lat},${gpsCoords.lon}`}
+                            title="Votre position"
+                            className="w-full block"
+                            style={{ height: 180, border: 'none' }}
+                          />
+                        </motion.div>
+                      )}
+                    </AnimatePresence>
+                  </div>
+                </>
               )}
             </div>
 

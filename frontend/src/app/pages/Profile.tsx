@@ -339,7 +339,7 @@ export default function Profile() {
               { icon: Calendar, label: 'Rendez-vous Showroom', sub: 'Réserver une visite',  path: '/appointment' },
               { icon: MapPin,   label: 'Suivre une commande',  sub: 'Historique complet',   path: '/orders' },
             ].map((item, i, arr) => (
-              <motion.button key={item.path} onClick={() => navigate(item.path)}
+              <motion.button key={item.label} onClick={() => navigate(item.path)}
                 className="w-full flex items-center justify-between px-4 py-4 text-left"
                 style={{ background: CARD_BG, borderBottom: i < arr.length - 1 ? `1px solid ${BORDER}` : 'none' }}
                 whileTap={{ scale: 0.99 }}>

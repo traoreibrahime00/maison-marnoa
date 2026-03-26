@@ -2,7 +2,7 @@ import { betterAuth } from 'better-auth';
 import { prismaAdapter } from 'better-auth/adapters/prisma';
 import { env } from '../common/env';
 import { prisma } from '../common/prisma';
-import { sendMail, buildResetPasswordEmail } from '../common/mailer';
+import { sendMail, buildResetPasswordEmail, buildWelcomeEmail } from '../common/mailer';
 
 const trustedOrigins = (process.env.BETTER_AUTH_TRUSTED_ORIGINS || '')
   .split(',')
@@ -59,4 +59,17 @@ export const auth = betterAuth({
     modelName: 'Verification',
   },
   trustedOrigins,
+  databaseHooks: {
+    user: {
+      create: {
+        after: async (user) => {
+          sendMail({
+            to: user.email,
+            subject: 'Bienvenue chez Maison Marnoa ✦',
+            html: buildWelcomeEmail(user.name || user.email),
+          }).catch(() => {});
+        },
+      },
+    },
+  },
 });

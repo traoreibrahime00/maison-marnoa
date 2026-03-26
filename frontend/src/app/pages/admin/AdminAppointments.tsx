@@ -63,7 +63,7 @@ export default function AdminAppointments() {
   const loadAppts = useCallback(async () => {
     setApptLoading(true);
     try {
-      const r = await fetch(apiUrl('/api/appointments'));
+      const r = await fetch(apiUrl('/api/appointments/all'), { credentials: 'include' });
       if (r.ok) setAppts(await r.json() as Appt[]);
     } finally { setApptLoading(false); }
   }, []);

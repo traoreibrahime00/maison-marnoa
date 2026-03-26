@@ -133,6 +133,25 @@ adminRouter.patch(
 );
 
 adminRouter.patch(
+  '/hero-settings',
+  asyncHandler(async (req, res) => {
+    const d = req.body as Record<string, unknown>;
+    const ops: Promise<unknown>[] = [];
+    const heroKeys = ['mediaUrl', 'mediaType', 'badge', 'title1', 'title2', 'subtitle', 'cta1', 'cta2'] as const;
+    const keyMap: Record<string, string> = {
+      mediaUrl: 'hero_media_url', mediaType: 'hero_media_type',
+      badge: 'hero_badge', title1: 'hero_title1', title2: 'hero_title2',
+      subtitle: 'hero_subtitle', cta1: 'hero_cta1', cta2: 'hero_cta2',
+    };
+    for (const k of heroKeys) {
+      if (d[k] !== undefined) ops.push(shippingService.setSetting(keyMap[k], String(d[k])));
+    }
+    await Promise.all(ops);
+    res.json({ ok: true });
+  })
+);
+
+adminRouter.patch(
   '/shipping/settings',
   asyncHandler(async (req, res) => {
     const d = req.body as Record<string, unknown>;

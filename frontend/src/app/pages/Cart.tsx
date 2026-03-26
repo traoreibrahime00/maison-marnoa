@@ -101,7 +101,7 @@ export default function Cart() {
         style={{ background: `${BG}F5`, backdropFilter: 'blur(20px)', borderBottom: `1px solid ${BORDER}` }}
       >
         <motion.button
-          onClick={() => navigate(-1)}
+          onClick={() => navigate('/collection')}
           className="w-10 h-10 rounded-full flex items-center justify-center"
           style={{ background: CARD_BG, border: `1px solid ${BORDER}`, boxShadow: '0 1px 4px rgba(0,0,0,0.06)' }}
           whileTap={{ scale: 0.88 }}
@@ -153,7 +153,7 @@ export default function Cart() {
           {/* Desktop page title */}
           <div className="hidden lg:flex items-center gap-4 mb-8">
             <motion.button
-              onClick={() => navigate(-1)}
+              onClick={() => navigate('/collection')}
               className="flex items-center gap-2"
               style={{ background: 'none', border: 'none', cursor: 'pointer', color: MUTED, fontSize: '13px', fontWeight: 500 }}
               whileHover={{ x: -3 }}

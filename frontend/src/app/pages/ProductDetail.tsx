@@ -278,16 +278,26 @@ export default function ProductDetail() {
           </h1>
 
           {/* Price */}
-          <div className="flex items-baseline gap-3 mb-2">
+          <div className="flex items-center gap-3 mb-2 flex-wrap">
             <span style={{ fontWeight: 800, fontSize: '26px', background: 'linear-gradient(135deg,#B8860B,#D4AF35)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
               {formatPrice(product.price)}
             </span>
-            {product.originalPrice && (
-              <span style={{ color: MUTED, fontSize: '14px', textDecoration: 'line-through' }}>
-                {formatPrice(product.originalPrice)}
-              </span>
+            {product.originalPrice && product.originalPrice > product.price && (
+              <>
+                <span style={{ color: MUTED, fontSize: '14px', textDecoration: 'line-through' }}>
+                  {formatPrice(product.originalPrice)}
+                </span>
+                <span style={{ background: '#ef4444', color: '#fff', fontSize: '11px', fontWeight: 700, padding: '2px 8px', borderRadius: '20px' }}>
+                  -{Math.round((1 - product.price / product.originalPrice) * 100)}%
+                </span>
+              </>
             )}
           </div>
+          {product.originalPrice && product.originalPrice > product.price && (
+            <p style={{ color: '#22c55e', fontSize: '12px', fontWeight: 600, marginBottom: '4px' }}>
+              Vous économisez {formatPrice(product.originalPrice - product.price)}
+            </p>
+          )}
           <div className="flex items-center gap-1.5 mb-5">
             <CreditCard size={12} color={GOLD} />
             <span style={{ color: MUTED, fontSize: '12px' }}>

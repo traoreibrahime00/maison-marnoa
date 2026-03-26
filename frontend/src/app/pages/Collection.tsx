@@ -1,10 +1,58 @@
 import { useApp, useProducts } from '../context/AppContext';
-import { useState } from 'react';
+import { useState, useCallback } from 'react';
 import { useNavigate, useSearchParams, useLocation } from 'react-router';
-import { Search, SlidersHorizontal, Heart, Star, ChevronDown, X, Check, ArrowRight } from 'lucide-react';
+import { Search, SlidersHorizontal, ChevronDown, X, Check } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
-import { categories, formatPrice, ProductCategory } from '../data/products';
+import { categories as STATIC_CATEGORIES, formatPrice } from '../data/products';
 import { ReassuranceBannerMobile } from '../components/ReassuranceBanner';
+import { ProductCard } from '../components/ProductCard';
+
+function PriceRangeSlider({ min, max, low, high, onChange }: {
+  min: number; max: number; low: number; high: number;
+  onChange: (low: number, high: number) => void;
+}) {
+  const range = max - min || 1;
+  const lowPct  = ((low  - min) / range) * 100;
+  const highPct = ((high - min) / range) * 100;
+
+  const handleLow = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const v = Math.min(Number(e.target.value), high - 1);
+    onChange(v, high);
+  }, [high, onChange]);
+
+  const handleHigh = useCallback((e: React.ChangeEvent<HTMLInputElement>) => {
+    const v = Math.max(Number(e.target.value), low + 1);
+    onChange(low, v);
+  }, [low, onChange]);
+
+  return (
+    <div>
+      {/* Track */}
+      <div className="relative h-1.5 rounded-full mb-5" style={{ background: 'rgba(0,0,0,0.1)' }}>
+        <div className="absolute h-full rounded-full" style={{
+          left: `${lowPct}%`, right: `${100 - highPct}%`,
+          background: 'linear-gradient(90deg,#C9A227,#E8C84A)',
+        }} />
+        {/* Low thumb */}
+        <input type="range" min={min} max={max} step={Math.round(range / 100)} value={low} onChange={handleLow}
+          className="absolute w-full h-full opacity-0 cursor-pointer" style={{ top: 0, left: 0, zIndex: low > max - (range * 0.05) ? 5 : 3 }} />
+        {/* High thumb */}
+        <input type="range" min={min} max={max} step={Math.round(range / 100)} value={high} onChange={handleHigh}
+          className="absolute w-full h-full opacity-0 cursor-pointer" style={{ top: 0, left: 0, zIndex: 4 }} />
+        {/* Thumb visuals */}
+        <div className="absolute w-4 h-4 rounded-full border-2 -translate-y-1/2 pointer-events-none"
+          style={{ left: `calc(${lowPct}% - 8px)`, top: '50%', background: '#fff', borderColor: '#C9A227', boxShadow: '0 1px 4px rgba(0,0,0,0.2)' }} />
+        <div className="absolute w-4 h-4 rounded-full border-2 -translate-y-1/2 pointer-events-none"
+          style={{ left: `calc(${highPct}% - 8px)`, top: '50%', background: '#fff', borderColor: '#C9A227', boxShadow: '0 1px 4px rgba(0,0,0,0.2)' }} />
+      </div>
+      {/* Labels */}
+      <div className="flex justify-between">
+        <span style={{ fontSize: '11px', fontWeight: 700, color: '#C9A227', fontFamily: 'Manrope, sans-serif' }}>{formatPrice(low)}</span>
+        <span style={{ fontSize: '11px', fontWeight: 700, color: '#C9A227', fontFamily: 'Manrope, sans-serif' }}>{formatPrice(high)}</span>
+      </div>
+    </div>
+  );
+}
 
 const GOLD = '#C9A227';
 
@@ -20,29 +68,45 @@ export default function Collection() {
   const navigate = useNavigate();
   const [params] = useSearchParams();
   const location = useLocation();
-  const { colors, toggleWishlist, isWishlisted } = useApp();
+  const { colors } = useApp();
   const { BG, CARD_BG, BORDER, TEXT, MUTED } = colors;
   const products = useProducts();
 
-  const initialCategory = (params.get('category') as ProductCategory) || 'all';
-  const [activeCategory, setActiveCategory] = useState<ProductCategory>(initialCategory);
+  const initialCategory = params.get('category') || 'all';
+  const [activeCategory, setActiveCategory] = useState(initialCategory);
+
+  // Catégories déduites des produits en base (avec label depuis les statiques, sinon capitalize)
+  const labelMap = Object.fromEntries(STATIC_CATEGORIES.map(c => [c.id, c.label]));
+  const dynamicCategories = [
+    { id: 'all', label: 'Tous' },
+    ...Array.from(new Set(products.map(p => p.category)))
+      .sort()
+      .map(id => ({ id, label: labelMap[id] ?? id.charAt(0).toUpperCase() + id.slice(1) })),
+  ];
   const [sortBy, setSortBy] = useState('featured');
   const [showSort, setShowSort] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');
   const [showFilters, setShowFilters] = useState(false);
-  const [hoveredCard, setHoveredCard] = useState<string | null>(null);
   const [animKey, setAnimKey] = useState(0);
 
-  function changeCategory(cat: ProductCategory) {
+  const globalMin = products.length ? Math.min(...products.map(p => p.price)) : 0;
+  const globalMax = products.length ? Math.max(...products.map(p => p.price)) : 5000000;
+  const [priceRange, setPriceRange] = useState<[number, number]>([0, Infinity]);
+  const priceLow  = priceRange[0] <= globalMin ? globalMin : priceRange[0];
+  const priceHigh = priceRange[1] >= globalMax ? globalMax : priceRange[1];
+  const priceActive = priceRange[0] > globalMin || priceRange[1] < globalMax;
+
+  function changeCategory(cat: string) {
     setActiveCategory(cat);
     setAnimKey(k => k + 1);
   }
 
   const filteredProducts = products
     .filter(p => {
-      const matchCat = activeCategory === 'all' || p.category === activeCategory;
+      const matchCat    = activeCategory === 'all' || p.category === activeCategory;
       const matchSearch = !searchQuery || p.name.toLowerCase().includes(searchQuery.toLowerCase()) || p.collection.toLowerCase().includes(searchQuery.toLowerCase());
-      return matchCat && matchSearch;
+      const matchPrice  = p.price >= priceLow && p.price <= priceHigh;
+      return matchCat && matchSearch && matchPrice;
     })
     .sort((a, b) => {
       switch (sortBy) {
@@ -66,8 +130,10 @@ export default function Collection() {
             <p style={{ color: GOLD, fontWeight: 700, fontSize: '10px', letterSpacing: '2px', textTransform: 'uppercase' }}>✦ HAUTE JOAILLERIE</p>
             <h1 style={{ color: colors.TEXT, fontWeight: 800, fontSize: '22px' }}>Collection</h1>
           </div>
-          <motion.button onClick={() => setShowFilters(true)} className="flex items-center gap-2 px-4 py-2 rounded-full" style={{ background: colors.CARD_BG, border: `1px solid ${colors.BORDER}` }} whileTap={{ scale: 0.94 }}>
-            <SlidersHorizontal size={14} color={colors.MUTED} /><span style={{ color: colors.MUTED, fontWeight: 600, fontSize: '11px' }}>Filtrer</span>
+          <motion.button onClick={() => setShowFilters(true)} className="flex items-center gap-2 px-4 py-2 rounded-full relative" style={{ background: priceActive ? 'rgba(201,162,39,0.1)' : colors.CARD_BG, border: `1px solid ${priceActive ? GOLD : colors.BORDER}` }} whileTap={{ scale: 0.94 }}>
+            <SlidersHorizontal size={14} color={priceActive ? GOLD : colors.MUTED} />
+            <span style={{ color: priceActive ? GOLD : colors.MUTED, fontWeight: 600, fontSize: '11px' }}>Filtrer{priceActive ? ' ·' : ''}</span>
+            {priceActive && <span style={{ width: 6, height: 6, borderRadius: '50%', background: GOLD, flexShrink: 0 }} />}
           </motion.button>
         </div>
         <div className="px-5 mb-4">
@@ -77,8 +143,8 @@ export default function Collection() {
             {searchQuery && <button onClick={() => setSearchQuery('')}><X size={14} color={colors.MUTED} /></button>}
           </div>
         </div>
-        <div className="flex gap-2 px-5 pb-4 overflow-x-auto" style={{ scrollbarWidth: 'none' }}>
-          {categories.map(cat => {
+        <div className="flex gap-2 px-5 pb-4 overflow-x-auto lg:overflow-x-visible lg:flex-wrap" style={{ scrollbarWidth: 'none' }}>
+          {dynamicCategories.map(cat => {
             const active = activeCategory === cat.id;
             return (
               <motion.button key={cat.id} onClick={() => changeCategory(cat.id as ProductCategory)} className="px-4 py-2 rounded-full whitespace-nowrap" whileTap={{ scale: 0.94 }}
@@ -114,7 +180,7 @@ export default function Collection() {
               <div className="mb-6">
                 <p style={{ color: colors.MUTED, fontWeight: 700, fontSize: '9px', letterSpacing: '2px', textTransform: 'uppercase', marginBottom: '10px' }}>Catégorie</p>
                 <div className="flex flex-col gap-1">
-                  {categories.map(cat => {
+                  {dynamicCategories.map(cat => {
                     const active = activeCategory === cat.id;
                     return (
                       <motion.button key={cat.id} onClick={() => changeCategory(cat.id as ProductCategory)} whileTap={{ scale: 0.97 }}
@@ -126,6 +192,23 @@ export default function Collection() {
                     );
                   })}
                 </div>
+              </div>
+
+              {/* Price range */}
+              <div className="mb-6">
+                <div className="flex items-center justify-between mb-3">
+                  <p style={{ color: colors.MUTED, fontWeight: 700, fontSize: '9px', letterSpacing: '2px', textTransform: 'uppercase' }}>Tranche de prix</p>
+                  {priceActive && (
+                    <button onClick={() => setPriceRange([0, Infinity])} style={{ color: GOLD, fontSize: '9px', fontWeight: 700, background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'Manrope, sans-serif' }}>
+                      Réinitialiser
+                    </button>
+                  )}
+                </div>
+                <PriceRangeSlider
+                  min={globalMin} max={globalMax}
+                  low={priceLow} high={priceHigh}
+                  onChange={(l, h) => setPriceRange([l, h])}
+                />
               </div>
 
               {/* Divider */}
@@ -178,79 +261,9 @@ export default function Collection() {
               <motion.div
                 key={animKey}
                 className="grid grid-cols-2 md:grid-cols-3 lg:grid-cols-3 xl:grid-cols-4 gap-3 lg:gap-4">
-                {filteredProducts.map((product, idx) => {
-                  const wishlisted = isWishlisted(product.id);
-                  const isHovered = hoveredCard === product.id;
-                  return (
-                    <motion.div key={product.id}
-                      initial={{ opacity: 0, y: 20 }} animate={{ opacity: 1, y: 0 }}
-                      transition={{ duration: 0.3, delay: Math.min(idx * 0.04, 0.4) }}
-                      whileTap={{ scale: 0.97 }}
-                      className="rounded-2xl overflow-hidden cursor-pointer group relative"
-                      style={{ background: colors.CARD_BG, border: `1px solid ${colors.BORDER}`, boxShadow: isHovered ? '0 8px 32px rgba(201,162,39,0.18)' : '0 2px 12px rgba(0,0,0,0.06)', transition: 'box-shadow 0.25s' }}
-                      onClick={() => navigate(`/product/${product.id}`)}
-                      onMouseEnter={() => setHoveredCard(product.id)}
-                      onMouseLeave={() => setHoveredCard(null)}
-                    >
-                      <div className="relative overflow-hidden" style={{ aspectRatio: '1/1' }}>
-                        <motion.img src={product.image} alt={product.name} className="w-full h-full object-cover"
-                          animate={{ scale: isHovered ? 1.07 : 1 }}
-                          transition={{ duration: 0.4 }}
-                        />
-                        <div className="absolute inset-0" style={{ background: 'linear-gradient(to bottom,transparent 55%,rgba(0,0,0,0.12) 100%)' }} />
-
-                        {/* Desktop hover overlay */}
-                        <AnimatePresence>
-                          {isHovered && (
-                            <motion.div
-                              initial={{ opacity: 0 }}
-                              animate={{ opacity: 1 }}
-                              exit={{ opacity: 0 }}
-                              transition={{ duration: 0.2 }}
-                              className="absolute inset-0 hidden lg:flex flex-col items-center justify-center gap-2"
-                              style={{ background: 'linear-gradient(180deg, rgba(0,0,0,0.18) 0%, rgba(201,162,39,0.28) 100%)', backdropFilter: 'blur(1px)' }}
-                            >
-                              <motion.div
-                                initial={{ scale: 0.85, opacity: 0, y: 8 }}
-                                animate={{ scale: 1, opacity: 1, y: 0 }}
-                                transition={{ delay: 0.05, duration: 0.22, ease: [0.25, 0.46, 0.45, 0.94] }}
-                                className="flex items-center gap-2 px-4 py-2 rounded-full"
-                                style={{ background: 'linear-gradient(135deg,#C9A227,#E8C84A)', color: '#fff', fontWeight: 700, fontSize: '12px', boxShadow: '0 4px 16px rgba(201,162,39,0.5)' }}
-                              >
-                                Voir la pièce <ArrowRight size={12} />
-                              </motion.div>
-                            </motion.div>
-                          )}
-                        </AnimatePresence>
-
-                        {(product.isNew || product.isBestseller) && (
-                          <div className="absolute top-2 left-2 px-2 py-0.5 rounded-full"
-                            style={{ background: product.isNew ? 'linear-gradient(135deg,#C9A227,#E8C84A)' : 'rgba(255,255,255,0.92)', color: product.isNew ? '#fff' : GOLD, fontWeight: 700, fontSize: '8px', letterSpacing: '1px', textTransform: 'uppercase', border: product.isNew ? 'none' : `1px solid ${GOLD}`, backdropFilter: 'blur(8px)' }}>
-                            {product.isNew ? 'Nouveau' : 'Top vente'}
-                          </div>
-                        )}
-                        <motion.button
-                          className="absolute top-2 right-2 w-8 h-8 rounded-full flex items-center justify-center"
-                          style={{ background: 'rgba(255,255,255,0.92)', backdropFilter: 'blur(8px)', border: `1px solid ${wishlisted ? GOLD : 'rgba(0,0,0,0.08)'}` }}
-                          whileTap={{ scale: 0.84 }} onClick={e => { e.stopPropagation(); toggleWishlist(product.id); }}>
-                          <Heart size={13} fill={wishlisted ? GOLD : 'none'} color={wishlisted ? GOLD : MUTED} />
-                        </motion.button>
-                      </div>
-                      <div className="p-3 lg:p-4">
-                        <p style={{ color: GOLD, fontWeight: 700, fontSize: '8px', letterSpacing: '1.5px', textTransform: 'uppercase', marginBottom: '2px' }}>{product.collection}</p>
-                        <p className="truncate" style={{ color: TEXT, fontWeight: 600, fontSize: '13px', marginBottom: '4px' }}>{product.name}</p>
-                        <div className="flex items-center gap-1 mb-2">
-                          {[...Array(5)].map((_, i) => <Star key={i} size={8} fill={i < Math.floor(product.rating) ? GOLD : 'none'} color={GOLD} />)}
-                          <span style={{ color: MUTED, fontSize: '9px' }}>({product.reviews})</span>
-                        </div>
-                        <div className="flex items-baseline gap-1.5">
-                          <span style={{ color: GOLD, fontWeight: 800, fontSize: '14px' }}>{formatPrice(product.price)}</span>
-                          {product.originalPrice && <span style={{ color: '#B0A090', fontSize: '10px', textDecoration: 'line-through' }}>{formatPrice(product.originalPrice)}</span>}
-                        </div>
-                      </div>
-                    </motion.div>
-                  );
-                })}
+                {filteredProducts.map((product, idx) => (
+                  <ProductCard key={product.id} product={product} index={idx} />
+                ))}
               </motion.div>
             )}
           </div>
@@ -272,19 +285,36 @@ export default function Collection() {
               </div>
               <p style={{ color: GOLD, fontWeight: 700, fontSize: '11px', letterSpacing: '2px', textTransform: 'uppercase', marginBottom: '12px' }}>Catégorie</p>
               <div className="flex flex-wrap gap-2 mb-6">
-                {categories.map(cat => {
+                {dynamicCategories.map(cat => {
                   const active = activeCategory === cat.id;
                   return (
-                    <motion.button key={cat.id} onClick={() => { changeCategory(cat.id as ProductCategory); setShowFilters(false); }} className="px-4 py-2 rounded-full" whileTap={{ scale: 0.93 }}
+                    <motion.button key={cat.id} onClick={() => changeCategory(cat.id)} className="px-4 py-2 rounded-full" whileTap={{ scale: 0.93 }}
                       style={{ background: active ? 'linear-gradient(135deg,#C9A227,#E8C84A)' : 'transparent', color: active ? '#fff' : MUTED, fontWeight: active ? 700 : 500, fontSize: '12px', border: active ? 'none' : `1px solid ${BORDER}` }}>
                       {cat.label}
                     </motion.button>
                   );
                 })}
               </div>
+
+              <div className="flex items-center justify-between mb-3">
+                <p style={{ color: GOLD, fontWeight: 700, fontSize: '11px', letterSpacing: '2px', textTransform: 'uppercase' }}>Tranche de prix</p>
+                {priceActive && (
+                  <button onClick={() => setPriceRange([0, Infinity])} style={{ color: MUTED, fontSize: '10px', fontWeight: 600, background: 'none', border: 'none', cursor: 'pointer', fontFamily: 'Manrope, sans-serif' }}>
+                    Réinitialiser
+                  </button>
+                )}
+              </div>
+              <div className="mb-6 px-1">
+                <PriceRangeSlider
+                  min={globalMin} max={globalMax}
+                  low={priceLow} high={priceHigh}
+                  onChange={(l, h) => setPriceRange([l, h])}
+                />
+              </div>
+
               <motion.button onClick={() => setShowFilters(false)} className="w-full py-4 rounded-2xl" whileTap={{ scale: 0.97 }}
                 style={{ background: 'linear-gradient(135deg,#C9A227,#E8C84A,#C9A227)', color: '#fff', fontWeight: 700, fontSize: '14px', boxShadow: '0 4px 16px rgba(201,162,39,0.3)' }}>
-                Appliquer les filtres
+                Voir les {filteredProducts.length} pièces
               </motion.button>
             </motion.div>
           </>

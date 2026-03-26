@@ -17,6 +17,7 @@ import { productsRouter } from './routes/products.router';
 import { promosRouter } from './routes/promos.router';
 import { receiptsRouter } from './routes/receipts.router';
 import { shippingRouter } from './routes/shipping.router';
+import { settingsRouter } from './routes/settings.router';
 
 export const app = express();
 
@@ -71,7 +72,7 @@ app.all(/^\/api\/auth(?:\/.*)?$/, (req, res) => {
   void authHandler(req, res);
 });
 
-app.use(express.json({ limit: '2mb' }));
+app.use(express.json({ limit: '15mb' }));
 
 app.get('/api/health', (_req, res) => {
   res.status(200).json({ ok: true, service: 'maison-marnoa-backend' });
@@ -89,6 +90,7 @@ app.use('/api/admin', requireAdmin, adminRouter);
 app.use('/api/appointments', appointmentsRouter);
 app.use('/api/track', analyticsRouter);
 app.use('/api/shipping', shippingRouter);
+app.use('/api/settings', settingsRouter);
 
 app.use((_req, res) => {
   res.status(404).json({ error: 'Route not found' });

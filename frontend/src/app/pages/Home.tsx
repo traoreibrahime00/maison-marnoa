@@ -1,13 +1,26 @@
 import { useState, useEffect, useRef } from 'react';
 import { useNavigate } from 'react-router';
-import { Search, ShoppingBag, Heart, ArrowRight, Star, Sparkles, Diamond, Clock } from 'lucide-react';
+import { Search, ShoppingBag, ArrowRight, Sparkles, Diamond, Clock } from 'lucide-react';
 import { motion, AnimatePresence, useScroll, useTransform } from 'motion/react';
-import { formatPrice, IMAGES, Product } from '../data/products';
+import { IMAGES, Product, categories as STATIC_CATEGORIES } from '../data/products';
 import { useApp, useColors, useProducts } from '../context/AppContext';
 import { MaisonMarnoaLogo } from '../components/MaisonMarnoaLogo';
 import { SkeletonList, SkeletonHorizontal } from '../components/SkeletonCard';
-import { toast } from 'sonner';
+import { ProductCard } from '../components/ProductCard';
 import { trackEvent } from '../lib/analytics';
+import { apiUrl } from '../lib/api';
+
+type HeroSettings = {
+  mediaUrl: string; mediaType: string;
+  badge: string; title1: string; title2: string;
+  subtitle: string; cta1: string; cta2: string;
+};
+const HERO_DEFAULTS: HeroSettings = {
+  mediaUrl: '', mediaType: 'image',
+  badge: 'Collection Exclusive', title1: 'Haute', title2: 'Joaillerie',
+  subtitle: "L'excellence joaillière au cœur d'Abidjan. Des créations soigneusement sélectionnées aux quatre coins du monde.",
+  cta1: 'Explorer la collection', cta2: 'Showroom Abidjan',
+};
 
 const GOLD = '#C9A227';
 
@@ -33,71 +46,11 @@ function GoldText({ children }: { children: React.ReactNode }) {
   );
 }
 
-function ProductCard({ product, index }: { product: typeof staticProducts[0]; index: number }) {
-  const navigate = useNavigate();
-  const { toggleWishlist, isWishlisted } = useApp();
-  const { CARD_BG, BORDER, TEXT, MUTED } = useColors();
-  const wishlisted = isWishlisted(product.id);
-
-  return (
-    <motion.div
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.4, delay: index * 0.06, ease: [0.25, 0.46, 0.45, 0.94] }}
-      whileTap={{ scale: 0.97 }}
-      className="rounded-2xl overflow-hidden cursor-pointer group"
-      style={{ background: CARD_BG, border: `1px solid ${BORDER}`, boxShadow: '0 2px 12px rgba(0,0,0,0.06)' }}
-      onClick={() => navigate(`/product/${product.id}`)}
-    >
-      <div className="relative overflow-hidden" style={{ aspectRatio: '1/1' }}>
-        <motion.img
-          src={product.image} alt={product.name}
-          className="w-full h-full object-cover"
-          whileHover={{ scale: 1.06 }} transition={{ duration: 0.45 }}
-        />
-        <div className="absolute inset-0" style={{ background: 'linear-gradient(to bottom,transparent 55%,rgba(0,0,0,0.15) 100%)' }} />
-        {(product.isNew || product.isBestseller) && (
-          <div className="absolute top-3 left-3 px-2 py-1 rounded-full text-[9px] uppercase tracking-widest"
-            style={{ background: product.isNew ? 'linear-gradient(135deg,#C9A227,#E8C84A)' : 'rgba(255,255,255,0.9)', color: product.isNew ? '#fff' : GOLD, fontWeight: 700, backdropFilter: 'blur(8px)', border: product.isNew ? 'none' : `1px solid ${GOLD}` }}>
-            {product.isNew ? 'Nouveau' : 'Bestseller'}
-          </div>
-        )}
-        {product.stock && product.stock <= 4 && (
-          <div className="absolute bottom-3 left-3 px-2 py-1 rounded-full text-[9px]"
-            style={{ background: 'rgba(239,68,68,0.9)', color: '#fff', fontWeight: 700, backdropFilter: 'blur(8px)' }}>
-            Plus que {product.stock} !
-          </div>
-        )}
-        <motion.button
-          className="absolute top-3 right-3 w-8 h-8 rounded-full flex items-center justify-center"
-          style={{ background: 'rgba(255,255,255,0.92)', backdropFilter: 'blur(8px)', border: `1px solid ${wishlisted ? GOLD : 'rgba(0,0,0,0.08)'}`, boxShadow: '0 2px 8px rgba(0,0,0,0.1)' }}
-          whileTap={{ scale: 0.85 }}
-          onClick={e => { e.stopPropagation(); toggleWishlist(product.id); if (!wishlisted) toast('❤️ Ajouté aux favoris', { description: product.name, duration: 2000 }); }}
-        >
-          <Heart size={14} fill={wishlisted ? GOLD : 'none'} color={wishlisted ? GOLD : MUTED} />
-        </motion.button>
-      </div>
-      <div className="p-3 lg:p-4">
-        <p className="truncate mb-0.5" style={{ fontWeight: 600, fontSize: '13px', color: TEXT }}>{product.name}</p>
-        <div className="flex items-center gap-1 mb-1">
-          <Star size={10} fill={GOLD} color={GOLD} />
-          <span style={{ fontSize: '10px', color: MUTED }}>{product.rating} ({product.reviews})</span>
-        </div>
-        <div className="flex items-baseline gap-1.5">
-          <span style={{ fontWeight: 700, fontSize: '13px', color: GOLD }}>{formatPrice(product.price)}</span>
-          {product.originalPrice && (
-            <span style={{ fontSize: '10px', color: '#B0A090', textDecoration: 'line-through' }}>{formatPrice(product.originalPrice)}</span>
-          )}
-        </div>
-      </div>
-    </motion.div>
-  );
-}
 
 function CategoryPill({ label, active, onClick }: { label: string; active: boolean; onClick: () => void }) {
   const { MUTED, BORDER } = useColors();
   return (
-    <motion.button onClick={onClick} className="px-4 py-2 rounded-full whitespace-nowrap" whileTap={{ scale: 0.94 }}
+    <motion.button onClick={onClick} className="px-4 py-2 rounded-full whitespace-nowrap flex-shrink-0" whileTap={{ scale: 0.94 }}
       style={{ background: active ? 'linear-gradient(135deg,#C9A227,#E8C84A,#C9A227)' : 'transparent', color: active ? '#fff' : MUTED, fontWeight: active ? 700 : 500, fontSize: '12px', letterSpacing: '0.5px', border: active ? 'none' : `1px solid ${BORDER}`, boxShadow: active ? '0 4px 12px rgba(201,162,39,0.3)' : 'none', transition: 'all 0.2s' }}>
       {label}
     </motion.button>
@@ -114,16 +67,26 @@ export default function Home() {
   const { BG, CARD_BG, BORDER, TEXT, MUTED } = colors;
   const [activeCategory, setActiveCategory] = useState('all');
   const [loading, setLoading] = useState(true);
+  const [hero, setHero] = useState<HeroSettings>(HERO_DEFAULTS);
   const heroRef = useRef<HTMLDivElement>(null);
   const { scrollYProgress } = useScroll({ target: heroRef, offset: ['start start', 'end start'] });
   const heroImgY = useTransform(scrollYProgress, [0, 1], ['0%', '18%']);
 
   useEffect(() => { const t = setTimeout(() => setLoading(false), 900); return () => clearTimeout(t); }, []);
   useEffect(() => { trackEvent({ type: 'VISIT_HOME' }); }, []);
+  useEffect(() => {
+    fetch(apiUrl('/api/settings/hero'))
+      .then(r => r.ok ? r.json() : null)
+      .then((d: HeroSettings | null) => { if (d) setHero(d); })
+      .catch(() => {});
+  }, []);
 
+  const labelMap = Object.fromEntries(STATIC_CATEGORIES.map(c => [c.id, c.label]));
   const cats = [
-    { id: 'all', label: 'Tous' }, { id: 'bague', label: 'Bagues' }, { id: 'collier', label: 'Colliers' },
-    { id: 'bracelet', label: 'Bracelets' }, { id: 'boucles', label: 'Boucles' }, { id: 'montre', label: 'Montres' },
+    { id: 'all', label: 'Tous' },
+    ...Array.from(new Set(products.map(p => p.category)))
+      .sort()
+      .map(id => ({ id, label: labelMap[id] ?? id.charAt(0).toUpperCase() + id.slice(1) })),
   ];
   const newArrivals = products.filter(p => p.isNew).slice(0, 8);
   const bestsellers = products.filter(p => p.isBestseller).slice(0, 8);
@@ -160,48 +123,64 @@ export default function Home() {
         initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.6, ease: [0.25, 0.46, 0.45, 0.94] }}
         className="relative mx-3 mt-3 lg:mx-0 lg:mt-0 lg:rounded-none rounded-3xl overflow-hidden"
       >
-        {/* Parallax image background */}
-        <motion.img
-          src={IMAGES.hero}
-          alt="Maison Marnoa"
-          className="absolute inset-0 w-full h-full object-cover"
-          style={{ y: heroImgY, scale: 1.12 }}
-        />
+        {/* Background: video or image */}
+        {hero.mediaType === 'video' && hero.mediaUrl ? (
+          <video
+            src={hero.mediaUrl} autoPlay muted loop playsInline
+            className="absolute inset-0 w-full h-full object-cover"
+            style={{ transform: 'scale(1.12)' }}
+          />
+        ) : (
+          <motion.img
+            src={hero.mediaUrl || IMAGES.hero}
+            alt="Maison Marnoa"
+            className="absolute inset-0 w-full h-full object-cover"
+            style={{ y: heroImgY, scale: 1.12 }}
+          />
+        )}
         <div className="absolute inset-0" style={{ background: 'linear-gradient(160deg,rgba(0,0,0,0.08) 0%,rgba(0,0,0,0.62) 100%)' }} />
 
         {/* Content — NOT absolute, drives the height of the hero */}
         <div className="relative z-10 flex flex-col justify-end px-5 pt-16 pb-6 lg:px-16 xl:px-20 lg:pt-28 lg:pb-14" style={{ minHeight: 'clamp(320px, 52vh, 580px)' }}>
-          <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3, duration: 0.5 }}
-            className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full mb-3 w-fit"
-            style={{ background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.3)', backdropFilter: 'blur(8px)' }}>
-            <Sparkles size={10} color="#fff" />
-            <span style={{ color: '#fff', fontWeight: 700, fontSize: '9px', letterSpacing: '2.5px', textTransform: 'uppercase' }}>Collection Exclusive</span>
-          </motion.div>
+          {hero.badge && (
+            <motion.div initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.3, duration: 0.5 }}
+              className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-full mb-3 w-fit"
+              style={{ background: 'rgba(255,255,255,0.15)', border: '1px solid rgba(255,255,255,0.3)', backdropFilter: 'blur(8px)' }}>
+              <Sparkles size={10} color="#fff" />
+              <span style={{ color: '#fff', fontWeight: 700, fontSize: '9px', letterSpacing: '2.5px', textTransform: 'uppercase' }}>{hero.badge}</span>
+            </motion.div>
+          )}
 
           <motion.h1 initial={{ opacity: 0, y: 14 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.4, duration: 0.5 }}
             style={{ color: '#fff', fontWeight: 800, fontSize: 'clamp(26px, 7vw, 68px)', lineHeight: 1.1, marginBottom: '10px' }}>
-            Haute<br />
-            <span style={{ background: 'linear-gradient(135deg,#FFE17A,#C9A227)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>Joaillerie</span>
+            {hero.title1}<br />
+            <span style={{ background: 'linear-gradient(135deg,#FFE17A,#C9A227)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>{hero.title2}</span>
           </motion.h1>
 
-          <motion.p initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5, duration: 0.5 }}
-            style={{ color: 'rgba(255,255,255,0.88)', fontSize: 'clamp(11px, 3.2vw, 17px)', lineHeight: 1.55, marginBottom: '18px', maxWidth: '420px' }}>
-            L'excellence joaillière au cœur d'Abidjan. Des créations soigneusement sélectionnées aux quatre coins du monde.
-          </motion.p>
+          {hero.subtitle && (
+            <motion.p initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.5, duration: 0.5 }}
+              style={{ color: 'rgba(255,255,255,0.88)', fontSize: 'clamp(11px, 3.2vw, 17px)', lineHeight: 1.55, marginBottom: '18px', maxWidth: '420px' }}>
+              {hero.subtitle}
+            </motion.p>
+          )}
 
           <div className="flex gap-2 flex-wrap">
-            <motion.button initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.6, duration: 0.5 }}
-              whileTap={{ scale: 0.96 }} onClick={() => navigate('/collection')}
-              className="flex items-center gap-2 px-5 py-2.5 rounded-full"
-              style={{ background: 'linear-gradient(135deg,#C9A227,#E8C84A,#C9A227)', color: '#fff', fontWeight: 700, fontSize: 'clamp(11px,3vw,14px)', boxShadow: '0 4px 20px rgba(201,162,39,0.45)', whiteSpace: 'nowrap' }}>
-              Explorer la collection <ArrowRight size={14} />
-            </motion.button>
-            <motion.button initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.7, duration: 0.5 }}
-              whileTap={{ scale: 0.96 }} onClick={() => navigate('/appointment')}
-              className="flex items-center gap-2 px-5 py-2.5 rounded-full"
-              style={{ background: 'rgba(255,255,255,0.15)', color: '#fff', fontWeight: 600, fontSize: 'clamp(11px,3vw,14px)', border: '1px solid rgba(255,255,255,0.35)', backdropFilter: 'blur(8px)', whiteSpace: 'nowrap' }}>
-              Showroom Abidjan
-            </motion.button>
+            {hero.cta1 && (
+              <motion.button initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.6, duration: 0.5 }}
+                whileTap={{ scale: 0.96 }} onClick={() => navigate('/collection')}
+                className="flex items-center gap-2 px-5 py-2.5 rounded-full"
+                style={{ background: 'linear-gradient(135deg,#C9A227,#E8C84A,#C9A227)', color: '#fff', fontWeight: 700, fontSize: 'clamp(11px,3vw,14px)', boxShadow: '0 4px 20px rgba(201,162,39,0.45)', whiteSpace: 'nowrap' }}>
+                {hero.cta1} <ArrowRight size={14} />
+              </motion.button>
+            )}
+            {hero.cta2 && (
+              <motion.button initial={{ opacity: 0, y: 10 }} animate={{ opacity: 1, y: 0 }} transition={{ delay: 0.7, duration: 0.5 }}
+                whileTap={{ scale: 0.96 }} onClick={() => navigate('/appointment')}
+                className="flex items-center gap-2 px-5 py-2.5 rounded-full"
+                style={{ background: 'rgba(255,255,255,0.15)', color: '#fff', fontWeight: 600, fontSize: 'clamp(11px,3vw,14px)', border: '1px solid rgba(255,255,255,0.35)', backdropFilter: 'blur(8px)', whiteSpace: 'nowrap' }}>
+                {hero.cta2}
+              </motion.button>
+            )}
           </div>
         </div>
       </motion.div>
@@ -227,7 +206,7 @@ export default function Home() {
 
         {/* Category Pills */}
         <div className="px-4 lg:px-0 mt-6 lg:mt-8">
-          <div className="flex gap-2 overflow-x-auto pb-1" style={{ scrollbarWidth: 'none' }}>
+          <div className="flex gap-2 overflow-x-auto lg:overflow-x-visible lg:flex-wrap pb-1" style={{ scrollbarWidth: 'none' }}>
             {cats.map(cat => (
               <CategoryPill key={cat.id} label={cat.label} active={activeCategory === cat.id} onClick={() => setActiveCategory(cat.id)} />
             ))}

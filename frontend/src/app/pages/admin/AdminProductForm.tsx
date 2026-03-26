@@ -17,8 +17,10 @@ interface FormData {
   name: string;
   collection: string;
   customCollection: string;
-  category: ProductCategory;
+  category: string;
+  customCategory: string;
   price: string;
+  originalPrice: string;
   material: string;
   customMaterial: string;
   weight: string;
@@ -33,8 +35,8 @@ interface FormData {
 }
 
 const EMPTY_FORM: FormData = {
-  name: '', collection: '', customCollection: '', category: 'bague',
-  price: '', material: '', customMaterial: '', weight: '',
+  name: '', collection: '', customCollection: '', category: 'bague', customCategory: '',
+  price: '', originalPrice: '', material: '', customMaterial: '', weight: '',
   description: '', stock: '', isNew: false, isBestseller: false, isFeatured: false,
   sizes: [], images: [], colorVariants: [],
 };
@@ -51,12 +53,15 @@ type ApiProduct = {
 function productToForm(p: ApiProduct): FormData {
   const knownMetal = METALS.includes(p.material ?? '');
   const knownColl = COLLECTIONS.includes(p.collection);
+  const knownCat = categories.filter(c => c.id !== 'all').map(c => c.id).includes(p.category);
   return {
     name: p.name,
     collection: knownColl ? p.collection : '__custom__',
     customCollection: knownColl ? '' : p.collection,
-    category: p.category as ProductCategory,
+    category: knownCat ? p.category : '__custom__',
+    customCategory: knownCat ? '' : p.category,
     price: String(p.price),
+    originalPrice: p.originalPrice ? String(p.originalPrice) : '',
     material: knownMetal ? (p.material ?? '') : '__custom__',
     customMaterial: knownMetal ? '' : (p.material ?? ''),
     weight: p.weight ?? '',
@@ -152,17 +157,7 @@ function PhotoManager({ images, onChange }: { images: string[]; onChange: (imgs:
     if (fileRef.current) fileRef.current.value = '';
 
     if (!cloudinaryReady) {
-      // Fallback: base64 (dev mode without Cloudinary configured)
-      const readers = files.map(file => new Promise<string>((resolve, reject) => {
-        const reader = new FileReader();
-        reader.onload = () => resolve(reader.result as string);
-        reader.onerror = reject;
-        reader.readAsDataURL(file);
-      }));
-      const results = await Promise.allSettled(readers);
-      const urls = results.filter(r => r.status === 'fulfilled').map(r => (r as PromiseFulfilledResult<string>).value);
-      onChange([...images, ...urls]);
-      setAddMode(null);
+      setUploadError('Cloudinary non configuré. Ajoutez VITE_CLOUDINARY_CLOUD_NAME et VITE_CLOUDINARY_UPLOAD_PRESET dans .env puis redémarrez le serveur.');
       return;
     }
 
@@ -198,16 +193,18 @@ function PhotoManager({ images, onChange }: { images: string[]; onChange: (imgs:
 
   return (
     <div>
-      {/* Cloudinary status badge */}
-      <div className="flex items-center gap-2 mb-4">
-        <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg"
-          style={{ background: cloudinaryReady ? 'rgba(34,197,94,0.08)' : 'rgba(245,158,11,0.08)', border: `1px solid ${cloudinaryReady ? 'rgba(34,197,94,0.2)' : 'rgba(245,158,11,0.2)'}` }}>
-          <Cloud size={11} color={cloudinaryReady ? '#22c55e' : '#f59e0b'} />
-          <span style={{ color: cloudinaryReady ? '#22c55e' : '#f59e0b', fontSize: '10px', fontWeight: 700, fontFamily: 'Manrope, sans-serif' }}>
-            {cloudinaryReady ? 'Cloudinary connecté' : 'Cloudinary non configuré — mode local (base64)'}
-          </span>
+      {/* Cloudinary status badge — dev only */}
+      {import.meta.env.DEV && (
+        <div className="flex items-center gap-2 mb-4">
+          <div className="flex items-center gap-1.5 px-3 py-1.5 rounded-lg"
+            style={{ background: cloudinaryReady ? 'rgba(34,197,94,0.08)' : 'rgba(245,158,11,0.08)', border: `1px solid ${cloudinaryReady ? 'rgba(34,197,94,0.2)' : 'rgba(245,158,11,0.2)'}` }}>
+            <Cloud size={11} color={cloudinaryReady ? '#22c55e' : '#f59e0b'} />
+            <span style={{ color: cloudinaryReady ? '#22c55e' : '#f59e0b', fontSize: '10px', fontWeight: 700, fontFamily: 'Manrope, sans-serif' }}>
+              {cloudinaryReady ? 'Cloudinary connecté' : 'Cloudinary non configuré'}
+            </span>
+          </div>
         </div>
-      </div>
+      )}
 
       {/* Current photos */}
       <div className="flex flex-wrap gap-3 mb-4">
@@ -300,11 +297,6 @@ function PhotoManager({ images, onChange }: { images: string[]; onChange: (imgs:
                   <Upload size={16} />
                   {cloudinaryReady ? 'Sélectionner et uploader sur Cloudinary' : 'Sélectionner des photos'}
                 </motion.button>
-                {!cloudinaryReady && (
-                  <p style={{ color: '#f59e0b', fontSize: '10px', marginTop: '8px', fontFamily: 'Manrope, sans-serif' }}>
-                    ⚠️ Cloudinary non configuré : les images seront stockées en base64 (déconseillé en production).
-                  </p>
-                )}
               </>
             )}
 
@@ -344,6 +336,7 @@ export default function AdminProductForm() {
   const [saved, setSaved] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
   const [loadError, setLoadError] = useState('');
+  const [saveError, setSaveError] = useState('');
   const [errors, setErrors] = useState<Partial<Record<keyof FormData, string>>>({});
 
   const set = <K extends keyof FormData>(key: K, value: FormData[K]) =>
@@ -372,16 +365,19 @@ export default function AdminProductForm() {
   const handleSave = async () => {
     if (!validate()) return;
     setIsSaving(true);
+    setSaveError('');
 
     const finalCollection = form.collection === '__custom__' ? form.customCollection : form.collection;
     const finalMaterial = form.material === '__custom__' ? form.customMaterial : form.material;
+    const finalCategory = form.category === '__custom__' ? form.customCategory : form.category;
 
     const payload = {
       ...(isCreating ? { id: crypto.randomUUID() } : {}),
       name: form.name.trim(),
       collection: finalCollection.trim(),
-      category: form.category,
+      category: finalCategory.trim(),
       price: Number(form.price),
+      originalPrice: form.originalPrice ? Number(form.originalPrice) : null,
       image: form.images[0] ?? '',
       images: form.images,
       description: form.description.trim(),
@@ -405,6 +401,7 @@ export default function AdminProductForm() {
       });
 
       if (!res.ok) {
+        if (res.status === 413) throw new Error('Images trop volumineuses. Configurez Cloudinary pour uploader des photos (voir le badge en haut du formulaire).');
         const body = await res.json().catch(() => ({}));
         throw new Error((body as { error?: string }).error || 'Erreur serveur');
       }
@@ -413,7 +410,7 @@ export default function AdminProductForm() {
       setTimeout(() => navigate('/admin/products'), 1200);
     } catch (err) {
       console.error('Failed to save product:', err);
-      setErrors(prev => ({ ...prev, name: err instanceof Error ? err.message : 'Erreur lors de la sauvegarde' }));
+      setSaveError(err instanceof Error ? err.message : 'Erreur lors de la sauvegarde');
     } finally {
       setIsSaving(false);
     }
@@ -488,11 +485,17 @@ export default function AdminProductForm() {
             </Field>
 
             <Field label="Catégorie">
-              <Select value={form.category} onChange={v => set('category', v as ProductCategory)}>
+              <Select value={form.category} onChange={v => set('category', v)}>
                 {categories.filter(c => c.id !== 'all').map(c => (
                   <option key={c.id} value={c.id}>{c.label}</option>
                 ))}
+                <option value="__custom__">Autre (saisir)</option>
               </Select>
+              {form.category === '__custom__' && (
+                <div style={{ marginTop: '8px' }}>
+                  <Input value={form.customCategory} onChange={v => set('customCategory', v)} placeholder="Ex: Accessoires, Chevalière…" />
+                </div>
+              )}
             </Field>
 
             <div className="col-span-2">
@@ -517,6 +520,21 @@ export default function AdminProductForm() {
             <Field label="Quantité en stock" hint="Laissez vide = illimité">
               <Input type="number" value={form.stock} onChange={v => set('stock', v)} placeholder="10" />
             </Field>
+            <div className="col-span-2">
+              <Field label="Prix barré / Ancien prix (FCFA)" hint="Optionnel — affiche un prix barré + badge de réduction pour créer l'urgence.">
+                <Input type="number" value={form.originalPrice} onChange={v => set('originalPrice', v)} placeholder="Ex: 600000" />
+                {form.originalPrice && Number(form.originalPrice) > Number(form.price) && (
+                  <p style={{ color: '#22c55e', fontSize: '11px', marginTop: '6px', fontFamily: 'Manrope, sans-serif', fontWeight: 600 }}>
+                    Réduction affichée : -{Math.round((1 - Number(form.price) / Number(form.originalPrice)) * 100)}%
+                  </p>
+                )}
+                {form.originalPrice && Number(form.originalPrice) <= Number(form.price) && (
+                  <p style={{ color: '#ef4444', fontSize: '11px', marginTop: '6px', fontFamily: 'Manrope, sans-serif' }}>
+                    L'ancien prix doit être supérieur au prix actuel.
+                  </p>
+                )}
+              </Field>
+            </div>
           </div>
         </div>
 
@@ -610,6 +628,15 @@ export default function AdminProductForm() {
             <Plus size={13} /> Ajouter une variante
           </motion.button>
         </div>
+
+        {/* ── Save error banner ── */}
+        {saveError && (
+          <div className="flex items-start gap-3 px-4 py-3 rounded-2xl"
+            style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.25)' }}>
+            <AlertCircle size={16} color="#ef4444" style={{ flexShrink: 0, marginTop: '1px' }} />
+            <span style={{ color: '#ef4444', fontSize: '13px', fontFamily: 'Manrope, sans-serif' }}>{saveError}</span>
+          </div>
+        )}
 
         {/* ── Actions ── */}
         <div className="flex gap-3 pb-8">

@@ -36,14 +36,14 @@ export default function Cart() {
   }, []);
 
   const freeThreshold = shippingData?.freeThreshold ?? 0;
-  const freeZoneName  = shippingData?.zones.find(z => z.zoneKey === shippingData?.freeZone)?.name ?? 'Abidjan';
+  const freeZoneName  = shippingData?.zones?.find(z => z.zoneKey === shippingData?.freeZone)?.name ?? 'Abidjan';
   // Default shipping price: cheapest active zone that is not permanently free
-  const defaultZone   = shippingData?.zones.find(z => !z.isFree) ?? shippingData?.zones[0];
+  const defaultZone   = shippingData?.zones?.find(z => !z.isFree) ?? shippingData?.zones?.[0];
   const SHIPPING      = defaultZone?.price ?? 3000;
   // Free shipping applies only if threshold is set (> 0) and cart reaches it
   const freeShipping  = freeThreshold > 0 && cartTotal >= freeThreshold;
   // Also free if all zones are marked isFree
-  const allZonesFree  = (shippingData?.zones.length ?? 0) > 0 && shippingData!.zones.every(z => z.isFree);
+  const allZonesFree  = (shippingData?.zones?.length ?? 0) > 0 && (shippingData?.zones?.every(z => z.isFree) ?? false);
 
   const discount    = promoApplied ? Math.round(cartTotal * (promoDiscount / 100)) : 0;
   const giftWrapFee = isGiftWrap ? 2500 : 0;

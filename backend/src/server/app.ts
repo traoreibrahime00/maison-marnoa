@@ -37,13 +37,9 @@ const allowedOrigins = [
 app.use(
   cors({
     origin: (origin, callback) => {
-      // En production, rejeter les requêtes sans Origin (hors health check)
+      // Pas d'Origin = requête same-origin (frontend + backend même domaine en prod)
+      // ou requête serveur-à-serveur légitime → autoriser
       if (!origin) {
-        if (env.NODE_ENV === 'production') {
-          callback(new Error('Origin header required'));
-          return;
-        }
-        // Dev : autoriser sans Origin (Postman, curl, etc.)
         callback(null, true);
         return;
       }

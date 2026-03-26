@@ -22,6 +22,16 @@ const HERO_DEFAULTS: HeroSettings = {
   cta1: 'Explorer la collection', cta2: 'Showroom Abidjan',
 };
 
+const HERO_CACHE_KEY = 'mm_hero_settings';
+
+function getCachedHero(): { settings: HeroSettings; ready: boolean } {
+  try {
+    const raw = localStorage.getItem(HERO_CACHE_KEY);
+    if (raw) return { settings: { ...HERO_DEFAULTS, ...JSON.parse(raw) }, ready: true };
+  } catch { /* ignore */ }
+  return { settings: HERO_DEFAULTS, ready: false };
+}
+
 const GOLD = '#C9A227';
 
 /** Scroll-reveal wrapper — fades + slides up when entering the viewport */
@@ -67,7 +77,9 @@ export default function Home() {
   const { BG, CARD_BG, BORDER, TEXT, MUTED } = colors;
   const [activeCategory, setActiveCategory] = useState('all');
   const [loading, setLoading] = useState(true);
-  const [hero, setHero] = useState<HeroSettings>(HERO_DEFAULTS);
+  const cached = getCachedHero();
+  const [hero, setHero] = useState<HeroSettings>(cached.settings);
+  const [heroReady, setHeroReady] = useState(cached.ready);
   const heroRef = useRef<HTMLDivElement>(null);
   const { scrollYProgress } = useScroll({ target: heroRef, offset: ['start start', 'end start'] });
   const heroImgY = useTransform(scrollYProgress, [0, 1], ['0%', '18%']);
@@ -77,8 +89,14 @@ export default function Home() {
   useEffect(() => {
     fetch(apiUrl('/api/settings/hero'))
       .then(r => r.ok ? r.json() : null)
-      .then((d: HeroSettings | null) => { if (d) setHero(d); })
-      .catch(() => {});
+      .then((d: HeroSettings | null) => {
+        if (d) {
+          setHero(d);
+          setHeroReady(true);
+          try { localStorage.setItem(HERO_CACHE_KEY, JSON.stringify(d)); } catch { /* ignore */ }
+        }
+      })
+      .catch(() => { setHeroReady(true); }); // en cas d'erreur réseau, affiche quand même
   }, []);
 
   const labelMap = Object.fromEntries(STATIC_CATEGORIES.map(c => [c.id, c.label]));
@@ -122,20 +140,27 @@ export default function Home() {
         initial={{ opacity: 0, scale: 0.98 }} animate={{ opacity: 1, scale: 1 }} transition={{ duration: 0.6, ease: [0.25, 0.46, 0.45, 0.94] }}
         className="relative mx-3 mt-3 lg:mx-0 lg:mt-0 lg:rounded-none rounded-3xl overflow-hidden"
       >
-        {/* Background: video or image */}
-        {hero.mediaType === 'video' && hero.mediaUrl ? (
-          <video
-            src={hero.mediaUrl} autoPlay muted loop playsInline
-            className="absolute inset-0 w-full h-full object-cover"
-            style={{ transform: 'scale(1.12)' }}
-          />
-        ) : (
-          <motion.img
-            src={hero.mediaUrl || IMAGES.hero}
-            alt="Maison Marnoa"
-            className="absolute inset-0 w-full h-full object-cover"
-            style={{ y: heroImgY, scale: 1.12 }}
-          />
+        {/* Background: fond sombre par défaut, media fade-in uniquement quand prêt */}
+        <div className="absolute inset-0" style={{ background: '#1a1008' }} />
+        {heroReady && (
+          hero.mediaType === 'video' && hero.mediaUrl ? (
+            <motion.video
+              key={hero.mediaUrl}
+              src={hero.mediaUrl} autoPlay muted loop playsInline
+              className="absolute inset-0 w-full h-full object-cover"
+              style={{ transform: 'scale(1.12)' }}
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.5 }}
+            />
+          ) : (
+            <motion.img
+              key={hero.mediaUrl}
+              src={hero.mediaUrl || IMAGES.hero}
+              alt="Maison Marnoa"
+              className="absolute inset-0 w-full h-full object-cover"
+              style={{ y: heroImgY, scale: 1.12 }}
+              initial={{ opacity: 0 }} animate={{ opacity: 1 }} transition={{ duration: 0.5 }}
+            />
+          )
         )}
         <div className="absolute inset-0" style={{ background: 'linear-gradient(160deg,rgba(0,0,0,0.08) 0%,rgba(0,0,0,0.62) 100%)' }} />
 

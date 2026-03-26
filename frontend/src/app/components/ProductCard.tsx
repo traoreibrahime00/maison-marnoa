@@ -42,10 +42,10 @@ export function ProductCard({ product, index = 0 }: ProductCardProps) {
       onMouseLeave={() => setHovered(false)}
     >
       {/* ── Image ── */}
-      <div className="relative overflow-hidden" style={{ aspectRatio: '1/1' }}>
+      <div className="relative overflow-hidden w-full" style={{ aspectRatio: '4/5' }}>
         <motion.img
           src={product.image} alt={product.name}
-          className="w-full h-full object-cover"
+          className="absolute inset-0 w-full h-full object-cover object-center"
           animate={{ scale: hovered ? 1.07 : 1 }}
           transition={{ duration: 0.45 }}
         />

@@ -1,9 +1,11 @@
 import { Router } from 'express';
-import { asyncHandler } from '../common/express';
+import { asyncHandler, requireAdmin } from '../common/express';
 import { adminService } from '../modules/admin/admin.service';
 import { notificationsService } from '../modules/notifications/notifications.service';
 import { parseAdminOrdersFilter } from '../modules/orders/orders.validator';
 import { shippingService } from '../modules/shipping/shipping.service';
+import { ordersRepository } from '../modules/orders/orders.repository';
+import { HttpError } from '../common/errors';
 
 export const adminRouter = Router();
 
@@ -24,6 +26,17 @@ adminRouter.get(
   })
 );
 
+adminRouter.delete(
+  '/orders',
+  requireAdmin,
+  asyncHandler(async (req, res) => {
+    const { ids } = req.body as { ids?: unknown };
+    if (!Array.isArray(ids) || ids.length === 0) throw new HttpError(400, 'ids[] requis');
+    const result = await ordersRepository.bulkDelete(ids as string[]);
+    res.json({ deleted: result.count });
+  })
+);
+
 adminRouter.get(
   '/payments',
   asyncHandler(async (req, res) => {
@@ -39,6 +52,17 @@ adminRouter.get(
     const limit = Number(req.query.limit || 20);
     const notifications = await notificationsService.listRecent(limit);
     res.status(200).json(notifications);
+  })
+);
+
+adminRouter.delete(
+  '/notifications',
+  requireAdmin,
+  asyncHandler(async (req, res) => {
+    const { ids } = req.body as { ids?: unknown };
+    if (!Array.isArray(ids) || ids.length === 0) throw new HttpError(400, 'ids[] requis');
+    const result = await notificationsService.deleteMany(ids as string[]);
+    res.json({ deleted: result.count });
   })
 );
 

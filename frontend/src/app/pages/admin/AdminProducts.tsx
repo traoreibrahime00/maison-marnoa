@@ -1,10 +1,13 @@
-import { useState, useEffect, useCallback } from 'react';
+import { useState, useEffect, useCallback, useMemo } from 'react';
 import { useNavigate } from 'react-router';
-import { motion, AnimatePresence } from 'motion/react';
-import { Pencil, Trash2, Plus, Search, Package, AlertTriangle, Star, Zap, Sparkles } from 'lucide-react';
+import { AnimatePresence, motion } from 'motion/react';
+import { Pencil, Trash2, Plus, Search, Package, AlertTriangle, Star, Zap, Sparkles, RefreshCw, ChevronLeft, ChevronRight } from 'lucide-react';
 import { apiUrl } from '../../lib/api';
 import { categories, formatPrice } from '../../data/products';
 import { useColors } from '../../context/AppContext';
+import { toast } from 'sonner';
+
+const FONT = 'Manrope, sans-serif';
 
 type ApiProduct = {
   id: string;
@@ -18,31 +21,121 @@ type ApiProduct = {
   isNew: boolean;
   isBestseller: boolean;
   isFeatured: boolean;
+  createdAt: string;
 };
+
+const BADGE_FIELDS = [
+  { field: 'isNew'        as const, icon: Sparkles, color: '#C9A227', label: 'Nouveau',   title: 'Afficher le badge "Nouveau" sur ce produit'                          },
+  { field: 'isBestseller' as const, icon: Star,     color: '#22c55e', label: 'Best',      title: 'Afficher le badge "Best-seller" sur ce produit'                      },
+  { field: 'isFeatured'   as const, icon: Zap,      color: '#a78bfa', label: 'Vedette',   title: 'Mettre en avant sur la page d\'accueil (section "Nos coups de cœur")' },
+];
+
+function isRecent(dateStr: string, minutes = 60) {
+  return Date.now() - new Date(dateStr).getTime() < minutes * 60 * 1000;
+}
+
+const PAGE_SIZES = [12, 24, 48] as const;
+
+function Pagination({ page, totalPages, total, pageSize, from, to, onPage, onPageSize, CARD_BG, BORDER, TEXT, MUTED, GOLD }: {
+  page: number; totalPages: number; total: number; pageSize: number;
+  from: number; to: number;
+  onPage: (p: number) => void; onPageSize: (s: number) => void;
+  CARD_BG: string; BORDER: string; TEXT: string; MUTED: string; GOLD: string;
+}) {
+  if (totalPages <= 1 && total <= PAGE_SIZES[0]) return null;
+
+  // Build page numbers with ellipsis
+  const pages: (number | '…')[] = [];
+  if (totalPages <= 7) {
+    for (let i = 1; i <= totalPages; i++) pages.push(i);
+  } else {
+    pages.push(1);
+    if (page > 3) pages.push('…');
+    for (let i = Math.max(2, page - 1); i <= Math.min(totalPages - 1, page + 1); i++) pages.push(i);
+    if (page < totalPages - 2) pages.push('…');
+    pages.push(totalPages);
+  }
+
+  const btn = (style: React.CSSProperties) => ({
+    display: 'flex', alignItems: 'center', justifyContent: 'center',
+    borderRadius: '8px', cursor: 'pointer', fontFamily: FONT, ...style,
+  });
+
+  return (
+    <div className="flex items-center justify-between flex-wrap gap-3 px-1 pt-4">
+      {/* Info + page size */}
+      <div className="flex items-center gap-3">
+        <span style={{ color: MUTED, fontSize: '12px', fontFamily: FONT }}>
+          {from}–{to} sur <strong style={{ color: TEXT }}>{total}</strong>
+        </span>
+        <div className="flex rounded-lg overflow-hidden" style={{ border: `1px solid ${BORDER}` }}>
+          {PAGE_SIZES.map(s => (
+            <button key={s} onClick={() => onPageSize(s)}
+              style={btn({
+                padding: '5px 10px', fontSize: '11px', fontWeight: 700, border: 'none',
+                background: pageSize === s ? 'rgba(201,162,39,0.12)' : CARD_BG,
+                color: pageSize === s ? GOLD : MUTED,
+              })}>
+              {s}
+            </button>
+          ))}
+        </div>
+      </div>
+
+      {/* Pages */}
+      {totalPages > 1 && (
+        <div className="flex items-center gap-1">
+          <button onClick={() => onPage(page - 1)} disabled={page === 1}
+            style={btn({ width: 32, height: 32, background: CARD_BG, border: `1px solid ${BORDER}`, color: page === 1 ? BORDER : MUTED, opacity: page === 1 ? 0.4 : 1 })}>
+            <ChevronLeft size={14} />
+          </button>
+
+          {pages.map((p, i) => p === '…' ? (
+            <span key={`e${i}`} style={{ color: MUTED, fontSize: '12px', padding: '0 4px', fontFamily: FONT }}>…</span>
+          ) : (
+            <button key={p} onClick={() => onPage(p as number)}
+              style={btn({
+                width: 32, height: 32, fontSize: '12px', fontWeight: 700,
+                background: p === page ? GOLD : CARD_BG,
+                color: p === page ? '#fff' : MUTED,
+                border: `1px solid ${p === page ? GOLD : BORDER}`,
+              } as React.CSSProperties)}>
+              {p}
+            </button>
+          ))}
+
+          <button onClick={() => onPage(page + 1)} disabled={page === totalPages}
+            style={btn({ width: 32, height: 32, background: CARD_BG, border: `1px solid ${BORDER}`, color: page === totalPages ? BORDER : MUTED, opacity: page === totalPages ? 0.4 : 1 })}>
+            <ChevronRight size={14} />
+          </button>
+        </div>
+      )}
+    </div>
+  );
+}
+
 
 export default function AdminProducts() {
   const { BG, CARD_BG, BORDER, TEXT, MUTED, GOLD } = useColors();
-  const navigate = useNavigate();
-  const [products, setProducts] = useState<ApiProduct[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [search, setSearch] = useState('');
-  const [filterCat, setFilterCat] = useState('all');
+  const navigate  = useNavigate();
+  const [products, setProducts]     = useState<ApiProduct[]>([]);
+  const [loading, setLoading]       = useState(true);
+  const [search, setSearch]         = useState('');
+  const [filterCat, setFilterCat]   = useState('all');
   const [confirmDelete, setConfirmDelete] = useState<string | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
-  const [toggling, setToggling] = useState<string | null>(null);
+  const [toggling, setToggling]     = useState<string | null>(null);
+  const [page, setPage]             = useState(1);
+  const [pageSize, setPageSize]     = useState<typeof PAGE_SIZES[number]>(12);
 
   const reload = useCallback(async () => {
     setLoading(true);
     try {
       const res = await fetch(apiUrl('/api/products'));
       if (!res.ok) throw new Error('Failed');
-      const data = await res.json() as ApiProduct[];
-      setProducts(data);
-    } catch {
-      // keep previous state on error
-    } finally {
-      setLoading(false);
-    }
+      setProducts(await res.json() as ApiProduct[]);
+    } catch { /* keep state */ }
+    finally { setLoading(false); }
   }, []);
 
   useEffect(() => { reload(); }, [reload]);
@@ -50,8 +143,13 @@ export default function AdminProducts() {
   const handleDelete = async (id: string) => {
     setIsDeleting(true);
     try {
-      await fetch(apiUrl(`/api/products/${id}`), { method: 'DELETE' });
-      await reload();
+      const res = await fetch(apiUrl(`/api/products/${id}`), {
+        method: 'DELETE',
+        credentials: 'include',
+      });
+      if (!res.ok) { toast.error('Erreur suppression'); return; }
+      setProducts(prev => prev.filter(p => p.id !== id));
+      toast('Produit supprimé');
     } finally {
       setConfirmDelete(null);
       setIsDeleting(false);
@@ -61,54 +159,80 @@ export default function AdminProducts() {
   const handleToggle = async (product: ApiProduct, field: 'isNew' | 'isBestseller' | 'isFeatured') => {
     const key = `${product.id}-${field}`;
     setToggling(key);
+    // Optimistic update
+    setProducts(prev => prev.map(p => p.id === product.id ? { ...p, [field]: !p[field] } : p));
     try {
-      await fetch(apiUrl(`/api/products/${product.id}`), {
+      const res = await fetch(apiUrl(`/api/products/${product.id}`), {
         method: 'PATCH',
         headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
         body: JSON.stringify({ [field]: !product[field] }),
       });
-      setProducts(prev =>
-        prev.map(p => p.id === product.id ? { ...p, [field]: !p[field] } : p)
-      );
+      if (!res.ok) {
+        // Revert on error
+        setProducts(prev => prev.map(p => p.id === product.id ? { ...p, [field]: product[field] } : p));
+        toast.error('Erreur de mise à jour');
+      }
+    } catch {
+      setProducts(prev => prev.map(p => p.id === product.id ? { ...p, [field]: product[field] } : p));
+      toast.error('Erreur réseau');
     } finally {
       setToggling(null);
     }
   };
 
-  const filtered = products.filter(p => {
-    const matchCat = filterCat === 'all' || p.category === filterCat;
+  const filtered = useMemo(() => products.filter(p => {
+    const matchCat    = filterCat === 'all' || p.category === filterCat;
     const matchSearch = p.name.toLowerCase().includes(search.toLowerCase());
     return matchCat && matchSearch;
-  });
+  }), [products, filterCat, search]);
 
-  const BADGE_FIELDS = [
-    { field: 'isNew' as const,        icon: Sparkles, color: '#C9A227', title: 'Nouveau' },
-    { field: 'isBestseller' as const, icon: Star,     color: '#22c55e', title: 'Best' },
-    { field: 'isFeatured' as const,   icon: Zap,      color: '#a78bfa', title: 'Vedette' },
-  ];
+  // Reset to page 1 when filter or search changes
+  useEffect(() => { setPage(1); }, [search, filterCat, pageSize]);
+
+  const totalPages = Math.max(1, Math.ceil(filtered.length / pageSize));
+  const safePage   = Math.min(page, totalPages);
+  const from       = filtered.length === 0 ? 0 : (safePage - 1) * pageSize + 1;
+  const to         = Math.min(safePage * pageSize, filtered.length);
+  const paginated  = useMemo(() => filtered.slice((safePage - 1) * pageSize, safePage * pageSize), [filtered, safePage, pageSize]);
+
+  const lowStockCount = products.filter(p => p.stock !== null && p.stock <= 3).length;
+  const justAdded     = paginated.filter(p => isRecent(p.createdAt, 60)).map(p => p.id);
 
   return (
     <>
-      {/* Toolbar */}
-      <div className="flex flex-wrap items-center gap-3 mb-6">
-        <div className="flex items-center gap-2 px-4 py-2.5 rounded-xl flex-1 min-w-0"
-          style={{ background: CARD_BG, border: `1px solid ${BORDER}` }}>
-          <Search size={14} color={MUTED} />
-          <input
-            placeholder="Rechercher un produit…"
-            value={search} onChange={e => setSearch(e.target.value)}
-            className="bg-transparent outline-none flex-1 min-w-0"
-            style={{ color: TEXT, fontSize: '13px', fontFamily: 'Manrope, sans-serif' }}
-          />
+      {/* ── Toolbar ── */}
+      <div className="flex flex-col gap-3 mb-5">
+        <div className="flex items-center gap-3 flex-wrap">
+          {/* Search */}
+          <div className="flex items-center gap-2 px-3 py-2.5 rounded-xl flex-1 min-w-[180px]"
+            style={{ background: CARD_BG, border: `1px solid ${BORDER}` }}>
+            <Search size={13} color={MUTED} />
+            <input
+              placeholder="Rechercher…"
+              value={search} onChange={e => setSearch(e.target.value)}
+              className="bg-transparent outline-none flex-1"
+              style={{ color: TEXT, fontSize: '13px', fontFamily: FONT }}
+            />
+            {search && (
+              <button onClick={() => setSearch('')} style={{ color: MUTED, background: 'none', border: 'none', cursor: 'pointer', fontSize: '14px', lineHeight: 1 }}>×</button>
+            )}
+          </div>
+          {/* Refresh */}
+          <button onClick={reload}
+            style={{ display: 'flex', alignItems: 'center', gap: '5px', padding: '8px 12px', borderRadius: '10px', cursor: 'pointer', background: CARD_BG, border: `1px solid ${BORDER}`, color: MUTED, fontSize: '12px', fontFamily: FONT }}>
+            <RefreshCw size={12} className={loading ? 'animate-spin' : ''} />
+          </button>
         </div>
 
+        {/* Category filters */}
         <div className="flex gap-2 flex-wrap">
           {[{ id: 'all', label: 'Tous' }, ...categories.filter(c => c.id !== 'all')].map(cat => (
             <button key={cat.id} onClick={() => setFilterCat(cat.id)}
               style={{
-                padding: '8px 14px', borderRadius: '12px', fontSize: '12px', fontWeight: 600,
-                fontFamily: 'Manrope, sans-serif', cursor: 'pointer',
-                background: filterCat === cat.id ? 'rgba(201,162,39,0.15)' : CARD_BG,
+                padding: '6px 12px', borderRadius: '10px', fontSize: '12px', fontWeight: 600,
+                fontFamily: FONT, cursor: 'pointer',
+                background: filterCat === cat.id ? 'rgba(201,162,39,0.12)' : CARD_BG,
                 border: `1px solid ${filterCat === cat.id ? 'rgba(201,162,39,0.4)' : BORDER}`,
                 color: filterCat === cat.id ? GOLD : MUTED,
               }}>
@@ -118,170 +242,222 @@ export default function AdminProducts() {
         </div>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-3 gap-3 mb-6">
+      {/* ── Stats ── */}
+      <div className="grid grid-cols-3 gap-3 mb-5">
         {[
-          { label: 'Total', value: products.length, icon: Package },
-          { label: 'Filtrés', value: filtered.length, icon: Search },
-          { label: 'Stock critique', value: products.filter(p => p.stock !== null && p.stock <= 3).length, icon: AlertTriangle, warn: true },
+          { label: 'Total',        value: products.length, icon: Package,       warn: false },
+          { label: 'Filtrés',      value: filtered.length, icon: Search,        warn: false  },
+          { label: 'Stock faible', value: lowStockCount,   icon: AlertTriangle, warn: true  },
         ].map(({ label, value, icon: Icon, warn }) => (
-          <div key={label} className="rounded-2xl p-3 lg:p-4"
+          <div key={label} className="rounded-xl p-3 lg:p-4"
             style={{ background: CARD_BG, border: `1px solid ${warn && value > 0 ? 'rgba(239,68,68,0.3)' : BORDER}` }}>
-            <div className="flex items-center gap-2 mb-1">
-              <Icon size={13} color={warn && value > 0 ? '#ef4444' : MUTED} />
-              <span style={{ color: MUTED, fontSize: '10px', fontFamily: 'Manrope, sans-serif' }}>{label}</span>
+            <div className="flex items-center gap-1.5 mb-1">
+              <Icon size={12} color={warn && value > 0 ? '#ef4444' : MUTED} />
+              <span style={{ color: MUTED, fontSize: '10px', fontFamily: FONT }}>{label}</span>
             </div>
-            <p style={{ color: warn && value > 0 ? '#ef4444' : TEXT, fontSize: '22px', fontWeight: 800, fontFamily: 'Manrope, sans-serif' }}>
-              {value}
-            </p>
+            <p style={{ color: warn && value > 0 ? '#ef4444' : TEXT, fontSize: '22px', fontWeight: 800, fontFamily: FONT, lineHeight: 1 }}>{value}</p>
           </div>
         ))}
       </div>
 
-      {/* Loading */}
+      {/* ── Loading ── */}
       {loading && (
-        <div className="flex items-center justify-center py-16">
-          <p style={{ color: MUTED, fontFamily: 'Manrope, sans-serif', fontSize: '13px' }}>Chargement…</p>
+        <div className="flex items-center justify-center py-16 gap-2">
+          <RefreshCw size={16} color={GOLD} className="animate-spin" />
+          <span style={{ color: MUTED, fontFamily: FONT, fontSize: '13px' }}>Chargement…</span>
         </div>
       )}
 
-      {!loading && filtered.length === 0 && (
-        <div className="flex flex-col items-center justify-center py-16">
-          <Package size={40} color={BORDER} />
-          <p style={{ color: MUTED, marginTop: '12px', fontFamily: 'Manrope, sans-serif', fontSize: '13px' }}>
-            Aucun produit trouvé
-          </p>
+      {!loading && paginated.length === 0 && (
+        <div className="flex flex-col items-center justify-center py-16 gap-3">
+          <Package size={36} color={BORDER} strokeWidth={1.5} />
+          <p style={{ color: MUTED, fontFamily: FONT, fontSize: '13px' }}>Aucun produit trouvé</p>
         </div>
       )}
 
-      {/* ── Desktop Table ── */}
-      {!loading && filtered.length > 0 && (
+      {/* ── Desktop table ── */}
+      {!loading && paginated.length > 0 && (
         <div className="hidden lg:block rounded-2xl overflow-hidden" style={{ border: `1px solid ${BORDER}` }}>
-          <div className="grid gap-0">
-            <div className="grid grid-cols-[60px_1fr_120px_110px_70px_130px_90px] px-5 py-3"
-              style={{ background: CARD_BG, borderBottom: `1px solid ${BORDER}` }}>
-              {['Photo', 'Produit', 'Catégorie', 'Prix', 'Stock', 'Badges', 'Actions'].map(h => (
-                <span key={h} style={{ color: MUTED, fontSize: '11px', fontWeight: 700, letterSpacing: '0.5px', fontFamily: 'Manrope, sans-serif', textTransform: 'uppercase' }}>
-                  {h}
-                </span>
-              ))}
-            </div>
-            <AnimatePresence>
-              {filtered.map((product, i) => {
-                const stockLow = product.stock !== null && product.stock <= 3;
-                return (
-                  <motion.div
-                    key={product.id}
-                    initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
-                    className="grid grid-cols-[60px_1fr_120px_110px_70px_130px_90px] px-5 py-4 items-center"
-                    style={{ borderBottom: i < filtered.length - 1 ? `1px solid ${BORDER}` : 'none', background: i % 2 === 0 ? BG : CARD_BG }}
-                  >
-                    <div className="w-12 h-12 rounded-xl overflow-hidden flex-shrink-0" style={{ border: `1px solid ${BORDER}` }}>
-                      <img src={product.image} alt={product.name} className="w-full h-full object-cover" />
+          {/* Header */}
+          <div className="grid grid-cols-[56px_1fr_110px_100px_64px_170px_80px] px-5 py-3"
+            style={{ background: CARD_BG, borderBottom: `1px solid ${BORDER}` }}>
+            {['Photo', 'Produit', 'Catégorie', 'Prix', 'Stock', 'Badges', ''].map((h, i) => (
+              <span key={i} style={{ color: MUTED, fontSize: '10px', fontWeight: 700, letterSpacing: '0.5px', fontFamily: FONT, textTransform: 'uppercase' }}>{h}</span>
+            ))}
+          </div>
+          <AnimatePresence>
+            {paginated.map((product, i) => {
+              const stockLow  = product.stock !== null && product.stock <= 3;
+              const highlight = justAdded.includes(product.id);
+              return (
+                <motion.div
+                  key={product.id}
+                  initial={{ opacity: 0, y: -6 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+                  transition={{ duration: 0.2, delay: i < 10 ? i * 0.03 : 0 }}
+                  className="grid grid-cols-[56px_1fr_110px_100px_64px_170px_80px] px-5 py-3.5 items-center"
+                  style={{
+                    borderBottom: i < filtered.length - 1 ? `1px solid ${BORDER}` : 'none',
+                    background: highlight ? 'rgba(201,162,39,0.04)' : (i % 2 === 0 ? BG : CARD_BG),
+                    boxShadow: highlight ? 'inset 3px 0 0 #C9A227' : 'none',
+                  }}
+                >
+                  {/* Image */}
+                  <div className="relative w-11 h-11 rounded-xl overflow-hidden flex-shrink-0" style={{ border: `1px solid ${highlight ? 'rgba(201,162,39,0.5)' : BORDER}` }}>
+                    <img src={product.image} alt={product.name} className="w-full h-full object-cover" />
+                    {highlight && (
+                      <div className="absolute inset-0 flex items-end justify-center pb-0.5"
+                        style={{ background: 'linear-gradient(to top, rgba(201,162,39,0.6), transparent)' }}>
+                        <span style={{ color: '#fff', fontSize: '7px', fontWeight: 800, fontFamily: FONT, letterSpacing: '0.5px' }}>NEW</span>
+                      </div>
+                    )}
+                  </div>
+
+                  {/* Name */}
+                  <div className="pr-4">
+                    <div className="flex items-center gap-2">
+                      <p style={{ color: TEXT, fontSize: '13px', fontWeight: 700, fontFamily: FONT }}>{product.name}</p>
+                      {highlight && (
+                        <span style={{ padding: '1px 6px', borderRadius: '99px', background: 'rgba(201,162,39,0.15)', color: GOLD, fontSize: '9px', fontWeight: 800, fontFamily: FONT, letterSpacing: '0.5px' }}>RÉCENT</span>
+                      )}
                     </div>
-                    <div className="pr-4">
-                      <p style={{ color: TEXT, fontSize: '13px', fontWeight: 700, fontFamily: 'Manrope, sans-serif' }}>{product.name}</p>
-                      <p style={{ color: MUTED, fontSize: '11px', fontFamily: 'Manrope, sans-serif' }}>{product.collection}</p>
-                    </div>
-                    <span style={{ color: MUTED, fontSize: '12px', fontFamily: 'Manrope, sans-serif', textTransform: 'capitalize' }}>{product.category}</span>
-                    <span style={{ color: GOLD, fontSize: '13px', fontWeight: 700, fontFamily: 'Manrope, sans-serif' }}>{formatPrice(product.price)}</span>
-                    <span style={{ color: stockLow ? '#ef4444' : TEXT, fontSize: '13px', fontWeight: stockLow ? 700 : 500, fontFamily: 'Manrope, sans-serif' }}>
+                    <p style={{ color: MUTED, fontSize: '11px', fontFamily: FONT }}>{product.collection}</p>
+                  </div>
+
+                  {/* Category */}
+                  <span style={{ color: MUTED, fontSize: '12px', fontFamily: FONT, textTransform: 'capitalize' }}>{product.category}</span>
+
+                  {/* Price */}
+                  <span style={{ color: GOLD, fontSize: '13px', fontWeight: 700, fontFamily: FONT }}>{formatPrice(product.price)}</span>
+
+                  {/* Stock */}
+                  <div className="flex items-center gap-1">
+                    {stockLow && <AlertTriangle size={11} color="#ef4444" />}
+                    <span style={{ color: stockLow ? '#ef4444' : TEXT, fontSize: '13px', fontWeight: stockLow ? 700 : 500, fontFamily: FONT }}>
                       {product.stock === null ? '∞' : product.stock}
                     </span>
-                    <div className="flex items-center gap-1">
-                      {BADGE_FIELDS.map(({ field, icon: Icon, color, title }) => {
-                        const active = product[field];
-                        const key = `${product.id}-${field}`;
-                        return (
-                          <motion.button key={field} whileTap={{ scale: 0.82 }} title={title}
-                            disabled={toggling === key} onClick={() => handleToggle(product, field)}
-                            className="w-7 h-7 rounded-lg flex items-center justify-center"
-                            style={{ background: active ? `${color}20` : 'transparent', border: `1px solid ${active ? color : BORDER}`, cursor: toggling === key ? 'wait' : 'pointer', opacity: toggling === key ? 0.5 : 1 }}>
-                            <Icon size={11} color={active ? color : MUTED} />
-                          </motion.button>
-                        );
-                      })}
-                    </div>
-                    <div className="flex items-center gap-2">
-                      <motion.button whileTap={{ scale: 0.88 }} onClick={() => navigate(`/admin/products/${product.id}/edit`)}
-                        className="w-8 h-8 rounded-lg flex items-center justify-center"
-                        style={{ background: 'rgba(201,162,39,0.1)', border: '1px solid rgba(201,162,39,0.2)', cursor: 'pointer' }}>
-                        <Pencil size={13} color="#C9A227" />
-                      </motion.button>
-                      <motion.button whileTap={{ scale: 0.88 }} onClick={() => setConfirmDelete(product.id)}
-                        className="w-8 h-8 rounded-lg flex items-center justify-center"
-                        style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.15)', cursor: 'pointer' }}>
-                        <Trash2 size={13} color="#ef4444" />
-                      </motion.button>
-                    </div>
-                  </motion.div>
-                );
-              })}
-            </AnimatePresence>
-          </div>
+                  </div>
+
+                  {/* Badge toggles */}
+                  <div className="flex items-center gap-1">
+                    {BADGE_FIELDS.map(({ field, icon: Icon, color, label, title }) => {
+                      const active = product[field];
+                      const key    = `${product.id}-${field}`;
+                      return (
+                        <button key={field} title={title} disabled={toggling === key}
+                          onClick={() => handleToggle(product, field)}
+                          className="flex items-center gap-1 px-2 py-1 rounded-lg"
+                          style={{
+                            background: active ? `${color}20` : 'transparent',
+                            border: `1px solid ${active ? color + '80' : BORDER}`,
+                            cursor: toggling === key ? 'wait' : 'pointer',
+                            opacity: toggling === key ? 0.5 : 1,
+                            transition: 'all 0.15s',
+                          }}>
+                          <Icon size={10} color={active ? color : MUTED} />
+                          <span style={{ color: active ? color : MUTED, fontSize: '9px', fontWeight: active ? 800 : 500, fontFamily: FONT }}>{label}</span>
+                        </button>
+                      );
+                    })}
+                  </div>
+
+                  {/* Actions */}
+                  <div className="flex items-center gap-1.5 pl-3" style={{ borderLeft: `1px solid ${BORDER}` }}>
+                    <button
+                      onClick={() => navigate(`/admin/products/${product.id}/edit`)}
+                      title="Modifier"
+                      className="w-8 h-8 rounded-lg flex items-center justify-center"
+                      style={{ background: 'linear-gradient(135deg,#C9A227,#E8C84A)', border: 'none', cursor: 'pointer', flexShrink: 0 }}>
+                      <Pencil size={13} color="#fff" strokeWidth={2.5} />
+                    </button>
+                    <button
+                      onClick={() => setConfirmDelete(product.id)}
+                      title="Supprimer"
+                      className="w-8 h-8 rounded-lg flex items-center justify-center"
+                      style={{ background: 'rgba(239,68,68,0.12)', border: '1px solid rgba(239,68,68,0.35)', cursor: 'pointer', flexShrink: 0 }}>
+                      <Trash2 size={13} color="#ef4444" strokeWidth={2.5} />
+                    </button>
+                  </div>
+                </motion.div>
+              );
+            })}
+          </AnimatePresence>
         </div>
       )}
 
-      {/* ── Mobile Cards ── */}
-      {!loading && filtered.length > 0 && (
+      {/* ── Mobile cards ── */}
+      {!loading && paginated.length > 0 && (
         <div className="lg:hidden flex flex-col gap-3">
           <AnimatePresence>
-            {filtered.map(product => {
-              const stockLow = product.stock !== null && product.stock <= 3;
+            {paginated.map((product, i) => {
+              const stockLow  = product.stock !== null && product.stock <= 3;
+              const highlight = justAdded.includes(product.id);
               return (
-                <motion.div key={product.id} initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+                <motion.div key={product.id}
+                  initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }}
+                  transition={{ duration: 0.2, delay: i < 8 ? i * 0.04 : 0 }}
                   className="rounded-2xl overflow-hidden"
-                  style={{ background: CARD_BG, border: `1px solid ${BORDER}` }}>
+                  style={{
+                    background: CARD_BG,
+                    border: `1px solid ${highlight ? 'rgba(201,162,39,0.45)' : BORDER}`,
+                    boxShadow: highlight ? '0 0 0 1px rgba(201,162,39,0.12)' : 'none',
+                  }}>
+
                   <div className="flex items-center gap-3 p-3">
-                    {/* Image */}
-                    <div className="w-14 h-14 rounded-xl overflow-hidden flex-shrink-0" style={{ border: `1px solid ${BORDER}` }}>
+                    <div className="relative w-14 h-14 rounded-xl overflow-hidden flex-shrink-0" style={{ border: `1px solid ${BORDER}` }}>
                       <img src={product.image} alt={product.name} className="w-full h-full object-cover" />
+                      {highlight && (
+                        <div className="absolute top-0.5 left-0.5 px-1 rounded" style={{ background: GOLD }}>
+                          <span style={{ color: '#fff', fontSize: '7px', fontWeight: 800, fontFamily: FONT }}>NEW</span>
+                        </div>
+                      )}
                     </div>
-                    {/* Info */}
                     <div className="flex-1 min-w-0">
-                      <p style={{ color: TEXT, fontSize: '13px', fontWeight: 700, fontFamily: 'Manrope, sans-serif' }} className="truncate">
-                        {product.name}
-                      </p>
-                      <p style={{ color: MUTED, fontSize: '11px', fontFamily: 'Manrope, sans-serif' }}>
-                        {product.collection} · <span style={{ textTransform: 'capitalize' }}>{product.category}</span>
-                      </p>
+                      <div className="flex items-center gap-1.5 flex-wrap">
+                        <p style={{ color: TEXT, fontSize: '13px', fontWeight: 700, fontFamily: FONT }} className="truncate">{product.name}</p>
+                        {highlight && <span style={{ padding: '1px 5px', borderRadius: '99px', background: 'rgba(201,162,39,0.15)', color: GOLD, fontSize: '9px', fontWeight: 800, fontFamily: FONT }}>RÉCENT</span>}
+                      </div>
+                      <p style={{ color: MUTED, fontSize: '11px', fontFamily: FONT }}>{product.collection} · <span style={{ textTransform: 'capitalize' }}>{product.category}</span></p>
                       <div className="flex items-center gap-3 mt-1">
-                        <span style={{ color: GOLD, fontSize: '13px', fontWeight: 800, fontFamily: 'Manrope, sans-serif' }}>
-                          {formatPrice(product.price)}
-                        </span>
-                        <span style={{ color: stockLow ? '#ef4444' : MUTED, fontSize: '11px', fontWeight: stockLow ? 700 : 500, fontFamily: 'Manrope, sans-serif' }}>
-                          Stock : {product.stock === null ? '∞' : product.stock}
-                          {stockLow && ' ⚠️'}
+                        <span style={{ color: GOLD, fontSize: '13px', fontWeight: 800, fontFamily: FONT }}>{formatPrice(product.price)}</span>
+                        <span style={{ color: stockLow ? '#ef4444' : MUTED, fontSize: '11px', fontWeight: stockLow ? 700 : 500, fontFamily: FONT }}>
+                          Stock : {product.stock === null ? '∞' : product.stock}{stockLow && ' ⚠️'}
                         </span>
                       </div>
                     </div>
-                    {/* Actions */}
-                    <div className="flex flex-col gap-2 flex-shrink-0">
-                      <motion.button whileTap={{ scale: 0.88 }} onClick={() => navigate(`/admin/products/${product.id}/edit`)}
+                    <div className="flex flex-col gap-1.5 flex-shrink-0">
+                      <button onClick={() => navigate(`/admin/products/${product.id}/edit`)}
                         className="w-9 h-9 rounded-xl flex items-center justify-center"
                         style={{ background: 'rgba(201,162,39,0.1)', border: '1px solid rgba(201,162,39,0.2)', cursor: 'pointer' }}>
                         <Pencil size={14} color="#C9A227" />
-                      </motion.button>
-                      <motion.button whileTap={{ scale: 0.88 }} onClick={() => setConfirmDelete(product.id)}
+                      </button>
+                      <button onClick={() => setConfirmDelete(product.id)}
                         className="w-9 h-9 rounded-xl flex items-center justify-center"
-                        style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.15)', cursor: 'pointer' }}>
+                        style={{ background: 'rgba(239,68,68,0.07)', border: '1px solid rgba(239,68,68,0.15)', cursor: 'pointer' }}>
                         <Trash2 size={14} color="#ef4444" />
-                      </motion.button>
+                      </button>
                     </div>
                   </div>
+
                   {/* Badge toggles */}
                   <div className="flex items-center gap-2 px-3 pb-3">
-                    {BADGE_FIELDS.map(({ field, icon: Icon, color, title }) => {
+                    {BADGE_FIELDS.map(({ field, icon: Icon, color, label }) => {
                       const active = product[field];
-                      const key = `${product.id}-${field}`;
+                      const key    = `${product.id}-${field}`;
                       return (
-                        <motion.button key={field} whileTap={{ scale: 0.88 }}
-                          disabled={toggling === key} onClick={() => handleToggle(product, field)}
-                          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg"
-                          style={{ background: active ? `${color}18` : 'transparent', border: `1px solid ${active ? color : BORDER}`, cursor: toggling === key ? 'wait' : 'pointer', opacity: toggling === key ? 0.5 : 1, fontFamily: 'Manrope, sans-serif' }}>
+                        <button key={field} disabled={toggling === key}
+                          onClick={() => handleToggle(product, field)}
+                          className="flex items-center gap-1.5 px-2.5 py-1.5 rounded-lg flex-1 justify-center"
+                          style={{
+                            background: active ? `${color}18` : 'transparent',
+                            border: `1px solid ${active ? color : BORDER}`,
+                            cursor: toggling === key ? 'wait' : 'pointer',
+                            opacity: toggling === key ? 0.5 : 1,
+                            transition: 'all 0.15s',
+                            fontFamily: FONT,
+                          }}>
                           <Icon size={11} color={active ? color : MUTED} />
-                          <span style={{ color: active ? color : MUTED, fontSize: '10px', fontWeight: 700 }}>{title}</span>
-                        </motion.button>
+                          <span style={{ color: active ? color : MUTED, fontSize: '11px', fontWeight: 700, fontFamily: FONT }}>{label}</span>
+                        </button>
                       );
                     })}
                   </div>
@@ -292,48 +468,56 @@ export default function AdminProducts() {
         </div>
       )}
 
-      {/* FAB add */}
+      {/* ── Pagination ── */}
+      {!loading && filtered.length > 0 && (
+        <Pagination
+          page={safePage} totalPages={totalPages} total={filtered.length}
+          pageSize={pageSize} from={from} to={to}
+          onPage={p => { setPage(p); window.scrollTo({ top: 0, behavior: 'smooth' }); }}
+          onPageSize={s => setPageSize(s as typeof PAGE_SIZES[number])}
+          CARD_BG={CARD_BG} BORDER={BORDER} TEXT={TEXT} MUTED={MUTED} GOLD={GOLD}
+        />
+      )}
+
+      {/* ── FAB add ── */}
       <motion.button
-        whileTap={{ scale: 0.94 }} whileHover={{ scale: 1.04 }}
+        whileTap={{ scale: 0.94 }} whileHover={{ scale: 1.05 }}
         onClick={() => navigate('/admin/products/new')}
-        className="fixed bottom-6 right-6 w-14 h-14 rounded-2xl flex items-center justify-center"
-        style={{ background: 'linear-gradient(135deg,#C9A227,#E8C84A)', boxShadow: '0 8px 24px rgba(201,162,39,0.4)', border: 'none', cursor: 'pointer' }}>
-        <Plus size={22} color="#fff" />
+        className="fixed bottom-6 right-6 flex items-center gap-2 px-5 py-3.5 rounded-2xl"
+        style={{ background: 'linear-gradient(135deg,#C9A227,#E8C84A)', boxShadow: '0 8px 24px rgba(201,162,39,0.45)', border: 'none', cursor: 'pointer', zIndex: 40 }}>
+        <Plus size={18} color="#fff" />
+        <span style={{ color: '#fff', fontWeight: 800, fontSize: '13px', fontFamily: FONT }}>Ajouter</span>
       </motion.button>
 
-      {/* Confirm delete modal */}
+      {/* ── Confirm delete modal ── */}
       <AnimatePresence>
         {confirmDelete && (
-          <motion.div
-            initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
+          <motion.div initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }}
             className="fixed inset-0 flex items-center justify-center z-50 p-6"
-            style={{ background: 'rgba(0,0,0,0.7)', backdropFilter: 'blur(8px)' }}
-            onClick={() => setConfirmDelete(null)}
-          >
-            <motion.div
-              initial={{ scale: 0.9 }} animate={{ scale: 1 }} exit={{ scale: 0.9 }}
-              className="rounded-3xl p-8 max-w-sm w-full"
+            style={{ background: 'rgba(0,0,0,0.65)', backdropFilter: 'blur(10px)' }}
+            onClick={() => setConfirmDelete(null)}>
+            <motion.div initial={{ scale: 0.92, y: 12 }} animate={{ scale: 1, y: 0 }} exit={{ scale: 0.92 }}
+              className="rounded-3xl p-8 max-w-xs w-full"
               style={{ background: CARD_BG, border: `1px solid ${BORDER}` }}
-              onClick={e => e.stopPropagation()}
-            >
-              <div className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-4"
+              onClick={e => e.stopPropagation()}>
+              <div className="w-14 h-14 rounded-2xl flex items-center justify-center mx-auto mb-5"
                 style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.2)' }}>
                 <Trash2 size={22} color="#ef4444" />
               </div>
-              <h3 style={{ color: TEXT, fontWeight: 800, fontSize: '18px', textAlign: 'center', marginBottom: '8px', fontFamily: 'Manrope, sans-serif' }}>
+              <h3 style={{ color: TEXT, fontWeight: 800, fontSize: '17px', textAlign: 'center', marginBottom: '6px', fontFamily: FONT }}>
                 Supprimer le produit ?
               </h3>
-              <p style={{ color: MUTED, fontSize: '13px', textAlign: 'center', marginBottom: '24px', fontFamily: 'Manrope, sans-serif' }}>
-                Ce produit sera définitivement supprimé de la base de données.
+              <p style={{ color: MUTED, fontSize: '13px', textAlign: 'center', marginBottom: '24px', fontFamily: FONT, lineHeight: 1.5 }}>
+                Cette action est irréversible.
               </p>
               <div className="flex gap-3">
                 <button onClick={() => setConfirmDelete(null)}
-                  style={{ flex: 1, padding: '12px', borderRadius: '14px', background: BG, border: `1px solid ${BORDER}`, color: MUTED, fontWeight: 600, fontSize: '13px', fontFamily: 'Manrope, sans-serif', cursor: 'pointer' }}>
+                  style={{ flex: 1, padding: '11px', borderRadius: '12px', background: 'transparent', border: `1px solid ${BORDER}`, color: MUTED, fontWeight: 600, fontSize: '13px', fontFamily: FONT, cursor: 'pointer' }}>
                   Annuler
                 </button>
                 <button onClick={() => handleDelete(confirmDelete)} disabled={isDeleting}
-                  style={{ flex: 1, padding: '12px', borderRadius: '14px', background: isDeleting ? BORDER : '#ef4444', border: 'none', color: isDeleting ? MUTED : '#fff', fontWeight: 700, fontSize: '13px', fontFamily: 'Manrope, sans-serif', cursor: isDeleting ? 'not-allowed' : 'pointer' }}>
-                  {isDeleting ? 'Suppression...' : 'Supprimer'}
+                  style={{ flex: 1, padding: '11px', borderRadius: '12px', background: isDeleting ? BORDER : '#ef4444', border: 'none', color: '#fff', fontWeight: 700, fontSize: '13px', fontFamily: FONT, cursor: isDeleting ? 'not-allowed' : 'pointer', opacity: isDeleting ? 0.7 : 1 }}>
+                  {isDeleting ? <RefreshCw size={14} className="animate-spin mx-auto" /> : 'Supprimer'}
                 </button>
               </div>
             </motion.div>

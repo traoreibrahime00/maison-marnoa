@@ -161,4 +161,8 @@ export const notificationsService = {
       take: safeLimit,
     });
   },
+
+  deleteMany(ids: string[]) {
+    return prisma.notificationLog.deleteMany({ where: { id: { in: ids } } });
+  },
 };

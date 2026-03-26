@@ -63,6 +63,10 @@ export const appointmentsRepository = {
     });
   },
 
+  bulkDelete(ids: string[]) {
+    return prisma.appointment.deleteMany({ where: { id: { in: ids } } });
+  },
+
   findBookedSlotsForDate(date: string) {
     return prisma.appointment.findMany({
       where: { date, status: { not: 'CANCELLED' } },

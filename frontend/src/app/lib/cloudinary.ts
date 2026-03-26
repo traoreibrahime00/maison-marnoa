@@ -23,17 +23,19 @@ export interface UploadProgress {
  */
 export async function uploadToCloudinary(
   file: File,
-  onProgress?: (pct: number) => void
+  onProgress?: (pct: number) => void,
+  folder = 'maison-marnoa/products'
 ): Promise<string> {
   if (!CLOUD_NAME || !UPLOAD_PRESET) {
     throw new Error('Cloudinary non configuré. Ajoutez VITE_CLOUDINARY_CLOUD_NAME et VITE_CLOUDINARY_UPLOAD_PRESET dans .env');
   }
 
-  const url = `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/image/upload`;
+  const resourceType = file.type.startsWith('video/') ? 'video' : 'image';
+  const url = `https://api.cloudinary.com/v1_1/${CLOUD_NAME}/${resourceType}/upload`;
   const formData = new FormData();
   formData.append('file', file);
   formData.append('upload_preset', UPLOAD_PRESET);
-  formData.append('folder', 'maison-marnoa/products');
+  formData.append('folder', folder);
 
   return new Promise((resolve, reject) => {
     const xhr = new XMLHttpRequest();

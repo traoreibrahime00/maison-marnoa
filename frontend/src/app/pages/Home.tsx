@@ -91,7 +91,6 @@ export default function Home() {
   const newArrivals = products.filter(p => p.isNew).slice(0, 8);
   const bestsellers = products.filter(p => p.isBestseller).slice(0, 8);
   const featured = products.filter(p => p.isFeatured).slice(0, 8);
-  const filteredFeatured = activeCategory === 'all' ? featured : products.filter(p => p.category === activeCategory).slice(0, 8);
   const recentProducts = recentlyViewed.map(id => products.find(p => p.id === id)).filter(Boolean).slice(0, 8) as Product[];
 
   return (
@@ -267,9 +266,37 @@ export default function Home() {
           )}
         </AnimatePresence>
 
+        {/* ── En Vedette ── */}
+        <AnimatePresence mode="wait">
+          {activeCategory === 'all' && featured.length > 0 && (
+            <SectionReveal delay={0.07}>
+              <motion.div key="featured" initial={{ opacity: 0 }} animate={{ opacity: 1 }} exit={{ opacity: 0 }} className="mt-10 px-4 lg:px-0">
+                <div className="flex items-center justify-between mb-5">
+                  <div>
+                    <p style={{ color: GOLD, fontWeight: 700, fontSize: '10px', letterSpacing: '2px', textTransform: 'uppercase' }}>✦ COUPS DE CŒUR</p>
+                    <h2 style={{ color: TEXT, fontWeight: 700, fontSize: 'clamp(18px,2vw,24px)' }}>En Vedette</h2>
+                  </div>
+                  <motion.button onClick={() => navigate('/collection')} className="flex items-center gap-1" whileTap={{ scale: 0.93 }}>
+                    <span style={{ color: GOLD, fontWeight: 700, fontSize: '12px' }}>Voir tout</span><ArrowRight size={13} color={GOLD} />
+                  </motion.button>
+                </div>
+
+                {/* Featured grid */}
+                <div className="grid grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-3 lg:gap-4">
+                  {featured.map((p, i) => (
+                    <div key={p.id} style={{ borderRadius: '20px', overflow: 'hidden', boxShadow: '0 0 0 2px rgba(201,162,39,0.3), 0 8px 28px rgba(201,162,39,0.12)' }}>
+                      <ProductCard product={p} index={i} />
+                    </div>
+                  ))}
+                </div>
+              </motion.div>
+            </SectionReveal>
+          )}
+        </AnimatePresence>
+
         {/* Bestsellers / Filtered */}
         <SectionReveal delay={0.08}>
-        <div className="mt-10 px-4 lg:px-0 pb-28 lg:pb-8">
+        <div className="mt-10 px-4 lg:px-0 pb-6 lg:pb-8">
           <div className="flex items-center justify-between mb-5">
             <div>
               <p style={{ color: GOLD, fontWeight: 700, fontSize: '10px', letterSpacing: '2px', textTransform: 'uppercase' }}>✦ SÉLECTION</p>
@@ -285,7 +312,7 @@ export default function Home() {
           <div className="grid grid-cols-2 lg:grid-cols-4 xl:grid-cols-5 gap-3 lg:gap-4">
             {loading
               ? <SkeletonList count={4} />
-              : (activeCategory === 'all' ? bestsellers : filteredFeatured).map((p, i) => (
+              : (activeCategory === 'all' ? bestsellers : products.filter(p => p.category === activeCategory).slice(0, 8)).map((p, i) => (
                 <ProductCard key={p.id} product={p} index={i} />
             ))}
           </div>

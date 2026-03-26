@@ -107,6 +107,10 @@ export const ordersRepository = {
     });
   },
 
+  bulkDelete(ids: string[]) {
+    return prisma.order.deleteMany({ where: { id: { in: ids } } });
+  },
+
   updateStatus(orderRef: string, status: OrderStatus) {
     return prisma.$transaction(async tx => {
       // Decrement stock when admin confirms the order

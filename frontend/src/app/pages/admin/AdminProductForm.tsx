@@ -37,7 +37,7 @@ interface FormData {
 const EMPTY_FORM: FormData = {
   name: '', collection: '', customCollection: '', category: 'bague', customCategory: '',
   price: '', originalPrice: '', material: '', customMaterial: '', weight: '',
-  description: '', stock: '', isNew: false, isBestseller: false, isFeatured: false,
+  description: '', stock: '', isNew: true, isBestseller: false, isFeatured: false,
   sizes: [], images: [], colorVariants: [],
 };
 
@@ -209,31 +209,34 @@ function PhotoManager({ images, onChange }: { images: string[]; onChange: (imgs:
       {/* Current photos */}
       <div className="flex flex-wrap gap-3 mb-4">
         {images.map((img, i) => (
-          <div key={i} className="relative group">
-            <div className="w-24 h-24 rounded-xl overflow-hidden"
-              style={{ border: i === 0 ? `2px solid ${GOLD}` : `1px solid ${BORDER}` }}>
-              <img src={img} alt="" className="w-full h-full object-cover" />
+          <div key={i} className="relative flex flex-col gap-1" style={{ width: '88px' }}>
+            {/* Image */}
+            <div className="relative rounded-xl overflow-hidden"
+              style={{ width: '88px', height: '88px', border: i === 0 ? `2px solid ${GOLD}` : `1px solid ${BORDER}`, flexShrink: 0 }}>
+              <img src={img} alt="" className="absolute inset-0 w-full h-full object-cover object-center" />
+              {/* Remove */}
+              <button onClick={() => remove(i)}
+                className="absolute top-1 right-1 w-5 h-5 rounded-full flex items-center justify-center"
+                style={{ background: 'rgba(0,0,0,0.55)', border: 'none', cursor: 'pointer' }}>
+                <X size={9} color="#fff" />
+              </button>
+              {/* Main badge */}
+              {i === 0 && (
+                <span style={{ position: 'absolute', bottom: 3, left: 3, background: GOLD, color: '#fff', fontSize: '7px', fontWeight: 800, padding: '2px 5px', borderRadius: '4px', fontFamily: 'Manrope, sans-serif', letterSpacing: '0.3px' }}>
+                  ✦ PRINCIPALE
+                </span>
+              )}
             </div>
-            {i === 0 && (
-              <span style={{ position: 'absolute', bottom: 4, left: 4, background: GOLD, color: '#fff', fontSize: '8px', fontWeight: 700, padding: '2px 5px', borderRadius: '4px', fontFamily: 'Manrope, sans-serif' }}>
-                PRINCIPALE
-              </span>
-            )}
-            {/* Set as main */}
+            {/* "Définir principale" button — always visible under non-main images */}
             {i > 0 && (
               <button
                 onClick={() => moveFirst(i)}
-                title="Définir comme photo principale"
-                className="absolute bottom-1 left-1 px-1.5 py-0.5 rounded opacity-0 group-hover:opacity-100"
-                style={{ background: 'rgba(201,162,39,0.85)', color: '#fff', fontSize: '7px', fontWeight: 700, border: 'none', cursor: 'pointer', transition: 'opacity 0.15s', fontFamily: 'Manrope, sans-serif' }}>
+                style={{ width: '100%', padding: '4px 0', borderRadius: '7px', background: 'rgba(201,162,39,0.1)', border: `1px solid rgba(201,162,39,0.3)`, color: GOLD, fontSize: '9px', fontWeight: 700, cursor: 'pointer', fontFamily: 'Manrope, sans-serif', textAlign: 'center' }}>
                 Principale
               </button>
             )}
-            <button onClick={() => remove(i)}
-              className="absolute -top-2 -right-2 w-6 h-6 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100"
-              style={{ background: '#ef4444', border: 'none', cursor: 'pointer', transition: 'opacity 0.15s' }}>
-              <X size={10} color="#fff" />
-            </button>
+            {/* Spacer under main to align grid */}
+            {i === 0 && <div style={{ height: '25px' }} />}
           </div>
         ))}
 
@@ -446,7 +449,6 @@ export default function AdminProductForm() {
           <h2 style={{ color: TEXT, fontWeight: 800, fontSize: '22px', fontFamily: 'Manrope, sans-serif', lineHeight: 1 }}>
             {isCreating ? 'Nouveau produit' : 'Modifier le produit'}
           </h2>
-          {!isCreating && <p style={{ color: MUTED, fontSize: '12px', fontFamily: 'Manrope, sans-serif', marginTop: '2px' }}>ID : {id}</p>}
         </div>
       </div>
 

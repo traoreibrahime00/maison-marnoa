@@ -27,6 +27,10 @@ export const appointmentsService = {
     return appointmentsRepository.updateStatus(ref, status);
   },
 
+  bulkDelete(ids: string[]) {
+    return appointmentsRepository.bulkDelete(ids);
+  },
+
   getAvailability() {
     return appointmentsRepository.getAvailability();
   },

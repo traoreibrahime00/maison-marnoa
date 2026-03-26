@@ -3,7 +3,7 @@ import type { ProductInput, ProductPatchInput } from './products.types';
 
 export const productsRepository = {
   list() {
-    return prisma.product.findMany({ orderBy: { createdAt: 'asc' } });
+    return prisma.product.findMany({ orderBy: { createdAt: 'desc' } });
   },
 
   findById(id: string) {

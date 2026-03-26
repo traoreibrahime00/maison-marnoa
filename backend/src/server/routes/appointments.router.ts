@@ -108,6 +108,18 @@ appointmentsRouter.get(
   })
 );
 
+// DELETE /api/appointments — bulk delete by ids
+appointmentsRouter.delete(
+  '/',
+  requireAdmin,
+  asyncHandler(async (req, res) => {
+    const { ids } = req.body as { ids?: unknown };
+    if (!Array.isArray(ids) || ids.length === 0) throw new HttpError(400, 'ids[] requis');
+    const result = await appointmentsService.bulkDelete(ids as string[]);
+    res.json({ deleted: result.count });
+  })
+);
+
 // PATCH /api/appointments/:ref/status — update status
 appointmentsRouter.patch(
   '/:ref/status',

@@ -1,5 +1,5 @@
-import { useEffect, useState, useCallback } from 'react';
-import { Calendar, Clock, Check, X, RefreshCw, ChevronDown } from 'lucide-react';
+import { useEffect, useState, useCallback, useMemo } from 'react';
+import { Calendar, Clock, Check, X, RefreshCw, ChevronDown, Trash2, AlertTriangle } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { apiUrl } from '../../lib/api';
 import { toast } from 'sonner';
@@ -51,6 +51,10 @@ export default function AdminAppointments() {
   const [appts, setAppts] = useState<Appt[]>([]);
   const [apptLoading, setApptLoading] = useState(true);
   const [updatingId, setUpdatingId] = useState<string | null>(null);
+  const [deletingId, setDeletingId] = useState<string | null>(null);
+  const [confirmDeleteId, setConfirmDeleteId] = useState<string | null>(null);
+  const [confirmClearAll, setConfirmClearAll] = useState(false);
+  const [statusFilter, setStatusFilter] = useState<string>('ALL');
 
   const loadConfig = useCallback(async () => {
     setConfigLoading(true);
@@ -93,6 +97,47 @@ export default function AdminAppointments() {
       if (r.ok) toast('Disponibilités sauvegardées', { duration: 2000 });
       else toast('Erreur sauvegarde', { duration: 2000 });
     } finally { setSaving(false); }
+  };
+
+  const filtered = useMemo(() =>
+    statusFilter === 'ALL' ? appts : appts.filter(a => a.status === statusFilter),
+  [appts, statusFilter]);
+
+  const deleteOne = async (id: string) => {
+    setDeletingId(id);
+    setAppts(prev => prev.filter(a => a.id !== id));
+    try {
+      await fetch(apiUrl('/api/appointments'), {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ ids: [id] }),
+      });
+      toast('Rendez-vous supprimé', { duration: 2000 });
+    } catch {
+      toast.error('Erreur suppression');
+    } finally {
+      setDeletingId(null);
+      setConfirmDeleteId(null);
+    }
+  };
+
+  const clearAll = async () => {
+    const ids = filtered.map(a => a.id);
+    if (!ids.length) return;
+    setAppts(prev => prev.filter(a => !ids.includes(a.id)));
+    setConfirmClearAll(false);
+    try {
+      await fetch(apiUrl('/api/appointments'), {
+        method: 'DELETE',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ ids }),
+      });
+      toast(`${ids.length} rendez-vous supprimés`, { duration: 2500 });
+    } catch {
+      toast.error('Erreur suppression');
+    }
   };
 
   const handleStatusChange = async (ref: string, status: string) => {
@@ -147,90 +192,189 @@ export default function AdminAppointments() {
 
         {/* ── TAB: Appointments ── */}
         {tab === 'appointments' && (
-          <motion.div key="appts" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} style={S.card}>
-            <h2 style={S.h2}><Calendar size={14} style={{ display: 'inline', marginRight: 6 }} />Tous les rendez-vous</h2>
+          <motion.div key="appts" initial={{ opacity: 0, y: 8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0 }} className="flex flex-col gap-4">
 
-            {apptLoading ? (
-              <p style={S.muted}>Chargement…</p>
-            ) : appts.length === 0 ? (
-              <p style={S.muted}>Aucun rendez-vous pour l'instant.</p>
-            ) : (
-              <>
-                {/* ── Desktop Table ── */}
-                <div className="hidden lg:block rounded-xl overflow-hidden" style={{ border: `1px solid ${BORDER}` }}>
-                  <div className="grid px-4 py-2.5" style={{ gridTemplateColumns: '100px 1fr 1fr 100px 130px 120px', background: BG, borderBottom: `1px solid ${BORDER}` }}>
-                    {['Réf', 'Client', 'Prestation', 'Date', 'Créneau', 'Statut'].map(h => (
-                      <span key={h} style={{ ...S.muted, fontWeight: 700, letterSpacing: '0.5px', fontSize: '10px', textTransform: 'uppercase' }}>{h}</span>
-                    ))}
+            {/* Filter bar */}
+            <div className="flex flex-wrap items-center gap-2">
+              {[
+                { key: 'ALL', label: 'Tous' },
+                { key: 'PENDING', label: 'En attente' },
+                { key: 'CONFIRMED', label: 'Confirmés' },
+                { key: 'COMPLETED', label: 'Terminés' },
+                { key: 'CANCELLED', label: 'Annulés' },
+              ].map(({ key, label }) => (
+                <button
+                  key={key}
+                  onClick={() => setStatusFilter(key)}
+                  style={{
+                    background: statusFilter === key ? `linear-gradient(135deg,${GOLD},#E8C84A)` : CARD_BG,
+                    color: statusFilter === key ? '#fff' : MUTED,
+                    border: `1px solid ${statusFilter === key ? GOLD : BORDER}`,
+                    fontWeight: 700, fontSize: '12px', fontFamily: FONT,
+                    padding: '6px 14px', borderRadius: '8px', cursor: 'pointer',
+                  }}
+                >
+                  {label}
+                  {key !== 'ALL' && (
+                    <span style={{ marginLeft: 6, opacity: 0.75 }}>
+                      {appts.filter(a => a.status === key).length}
+                    </span>
+                  )}
+                </button>
+              ))}
+            </div>
+
+            {/* Contextual delete banner */}
+            <AnimatePresence>
+              {filtered.length > 0 && (
+                <motion.div
+                  initial={{ opacity: 0, y: -8 }} animate={{ opacity: 1, y: 0 }} exit={{ opacity: 0, y: -8 }}
+                  className="flex items-center justify-between gap-3 px-4 py-3 rounded-xl"
+                  style={{ background: 'rgba(239,68,68,0.08)', border: '1px solid rgba(239,68,68,0.2)' }}
+                >
+                  <span style={{ color: '#ef4444', fontSize: '12px', fontFamily: FONT, display: 'flex', alignItems: 'center', gap: 6 }}>
+                    <AlertTriangle size={13} />
+                    {statusFilter === 'ALL'
+                      ? `Supprimer tous les ${filtered.length} rendez-vous ?`
+                      : `Supprimer les ${filtered.length} rendez-vous « ${STATUS_COLORS[statusFilter]?.label ?? statusFilter} » ?`}
+                  </span>
+                  {confirmClearAll ? (
+                    <div className="flex gap-2">
+                      <button onClick={clearAll} style={{ background: '#ef4444', color: '#fff', fontWeight: 700, fontSize: '12px', fontFamily: FONT, padding: '6px 14px', borderRadius: '8px', border: 'none', cursor: 'pointer' }}>
+                        Confirmer
+                      </button>
+                      <button onClick={() => setConfirmClearAll(false)} style={{ background: 'transparent', color: MUTED, fontSize: '12px', fontFamily: FONT, padding: '6px 10px', borderRadius: '8px', border: `1px solid ${BORDER}`, cursor: 'pointer' }}>
+                        Annuler
+                      </button>
+                    </div>
+                  ) : (
+                    <button onClick={() => setConfirmClearAll(true)} style={{ background: '#ef4444', color: '#fff', fontWeight: 700, fontSize: '12px', fontFamily: FONT, padding: '6px 14px', borderRadius: '8px', border: 'none', cursor: 'pointer', display: 'flex', alignItems: 'center', gap: 5 }}>
+                      <Trash2 size={12} /> Tout supprimer
+                    </button>
+                  )}
+                </motion.div>
+              )}
+            </AnimatePresence>
+
+            <div style={S.card}>
+              <h2 style={S.h2}><Calendar size={14} style={{ display: 'inline', marginRight: 6 }} />Tous les rendez-vous</h2>
+
+              {apptLoading ? (
+                <p style={S.muted}>Chargement…</p>
+              ) : filtered.length === 0 ? (
+                <p style={S.muted}>Aucun rendez-vous pour l'instant.</p>
+              ) : (
+                <>
+                  {/* ── Desktop Table ── */}
+                  <div className="hidden lg:block rounded-xl overflow-hidden" style={{ border: `1px solid ${BORDER}` }}>
+                    <div className="grid px-4 py-2.5" style={{ gridTemplateColumns: '100px 1fr 1fr 100px 130px 120px 40px', background: BG, borderBottom: `1px solid ${BORDER}` }}>
+                      {['Réf', 'Client', 'Prestation', 'Date', 'Créneau', 'Statut', ''].map((h, i) => (
+                        <span key={i} style={{ ...S.muted, fontWeight: 700, letterSpacing: '0.5px', fontSize: '10px', textTransform: 'uppercase' }}>{h}</span>
+                      ))}
+                    </div>
+                    {filtered.map((appt, idx) => {
+                      const meta = STATUS_COLORS[appt.status] ?? STATUS_COLORS.PENDING;
+                      const canDelete = appt.status === 'CANCELLED' || appt.status === 'COMPLETED';
+                      return (
+                        <motion.div key={appt.id} layout
+                          animate={{ opacity: deletingId === appt.id ? 0 : 1, scale: deletingId === appt.id ? 0.97 : 1 }}
+                          transition={{ duration: 0.2 }}
+                          className="grid items-center px-4 py-3 gap-2"
+                          style={{ gridTemplateColumns: '100px 1fr 1fr 100px 130px 120px 40px', background: idx % 2 ? BG : CARD_BG, borderBottom: `1px solid ${BORDER}` }}>
+                          <span style={{ color: GOLD, fontSize: '11px', fontWeight: 700, fontFamily: FONT }}>{appt.ref}</span>
+                          <div>
+                            <p style={{ ...S.text, fontSize: '12px', fontWeight: 600 }}>{appt.customerName}</p>
+                            <p style={{ ...S.muted, fontSize: '10px' }}>{appt.customerPhone}</p>
+                          </div>
+                          <span style={{ ...S.text, fontSize: '12px' }}>{appt.serviceLabel}</span>
+                          <span style={{ ...S.muted }}>{appt.date}</span>
+                          <span style={{ ...S.text, fontSize: '12px' }}>{appt.slot}</span>
+                          <div className="relative">
+                            <StatusDropdown
+                              current={appt.status}
+                              loading={updatingId === appt.ref}
+                              onChange={(s) => handleStatusChange(appt.ref, s)}
+                              meta={meta}
+                            />
+                          </div>
+                          <div>
+                            {canDelete && confirmDeleteId === appt.id ? (
+                              <div className="flex gap-1">
+                                <button onClick={() => deleteOne(appt.id)} title="Confirmer" style={{ background: '#ef4444', color: '#fff', border: 'none', borderRadius: '6px', padding: '3px 6px', cursor: 'pointer', fontSize: '10px', fontWeight: 700 }}>✓</button>
+                                <button onClick={() => setConfirmDeleteId(null)} title="Annuler" style={{ background: 'transparent', color: MUTED, border: `1px solid ${BORDER}`, borderRadius: '6px', padding: '3px 6px', cursor: 'pointer', fontSize: '10px' }}>✗</button>
+                              </div>
+                            ) : canDelete ? (
+                              <button onClick={() => setConfirmDeleteId(appt.id)} title="Supprimer" style={{ background: 'transparent', border: 'none', cursor: 'pointer', color: MUTED, padding: '4px', borderRadius: '6px' }}>
+                                <Trash2 size={13} />
+                              </button>
+                            ) : null}
+                          </div>
+                        </motion.div>
+                      );
+                    })}
                   </div>
-                  {appts.map((appt, idx) => {
-                    const meta = STATUS_COLORS[appt.status] ?? STATUS_COLORS.PENDING;
-                    return (
-                      <div key={appt.id} className="grid items-center px-4 py-3 gap-2"
-                        style={{ gridTemplateColumns: '100px 1fr 1fr 100px 130px 120px', background: idx % 2 ? BG : CARD_BG, borderBottom: `1px solid ${BORDER}` }}>
-                        <span style={{ color: GOLD, fontSize: '11px', fontWeight: 700, fontFamily: FONT }}>{appt.ref}</span>
-                        <div>
-                          <p style={{ ...S.text, fontSize: '12px', fontWeight: 600 }}>{appt.customerName}</p>
-                          <p style={{ ...S.muted, fontSize: '10px' }}>{appt.customerPhone}</p>
-                        </div>
-                        <span style={{ ...S.text, fontSize: '12px' }}>{appt.serviceLabel}</span>
-                        <span style={{ ...S.muted }}>{appt.date}</span>
-                        <span style={{ ...S.text, fontSize: '12px' }}>{appt.slot}</span>
-                        <div className="relative">
-                          <StatusDropdown
-                            current={appt.status}
-                            loading={updatingId === appt.ref}
-                            onChange={(s) => handleStatusChange(appt.ref, s)}
-                            meta={meta}
-                          />
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
 
-                {/* ── Mobile Cards ── */}
-                <div className="lg:hidden flex flex-col gap-3">
-                  {appts.map(appt => {
-                    const meta = STATUS_COLORS[appt.status] ?? STATUS_COLORS.PENDING;
-                    return (
-                      <div key={appt.id} className="rounded-xl p-4 flex flex-col gap-3"
-                        style={{ background: BG, border: `1px solid ${BORDER}` }}>
-                        {/* Header row */}
-                        <div className="flex items-start justify-between gap-2">
-                          <div className="flex-1 min-w-0">
-                            <p style={{ color: GOLD, fontSize: '11px', fontWeight: 700, fontFamily: FONT }}>{appt.ref}</p>
-                            <p style={{ ...S.text, fontSize: '14px', fontWeight: 700 }}>{appt.customerName}</p>
-                            <a href={`tel:${appt.customerPhone}`} style={{ ...S.muted, textDecoration: 'none' }}>{appt.customerPhone}</a>
+                  {/* ── Mobile Cards ── */}
+                  <div className="lg:hidden flex flex-col gap-3">
+                    {filtered.map(appt => {
+                      const meta = STATUS_COLORS[appt.status] ?? STATUS_COLORS.PENDING;
+                      const canDelete = appt.status === 'CANCELLED' || appt.status === 'COMPLETED';
+                      return (
+                        <motion.div key={appt.id} layout
+                          animate={{ opacity: deletingId === appt.id ? 0 : 1, scale: deletingId === appt.id ? 0.97 : 1 }}
+                          transition={{ duration: 0.2 }}
+                          className="rounded-xl p-4 flex flex-col gap-3"
+                          style={{ background: BG, border: `1px solid ${BORDER}` }}>
+                          {/* Header row */}
+                          <div className="flex items-start justify-between gap-2">
+                            <div className="flex-1 min-w-0">
+                              <p style={{ color: GOLD, fontSize: '11px', fontWeight: 700, fontFamily: FONT }}>{appt.ref}</p>
+                              <p style={{ ...S.text, fontSize: '14px', fontWeight: 700 }}>{appt.customerName}</p>
+                              <a href={`tel:${appt.customerPhone}`} style={{ ...S.muted, textDecoration: 'none' }}>{appt.customerPhone}</a>
+                            </div>
+                            <div className="flex items-center gap-2">
+                              <StatusDropdown
+                                current={appt.status}
+                                loading={updatingId === appt.ref}
+                                onChange={(s) => handleStatusChange(appt.ref, s)}
+                                meta={meta}
+                              />
+                              {canDelete && (
+                                confirmDeleteId === appt.id ? (
+                                  <div className="flex gap-1">
+                                    <button onClick={() => deleteOne(appt.id)} style={{ background: '#ef4444', color: '#fff', border: 'none', borderRadius: '6px', padding: '5px 8px', cursor: 'pointer', fontSize: '11px', fontWeight: 700 }}>✓</button>
+                                    <button onClick={() => setConfirmDeleteId(null)} style={{ background: 'transparent', color: MUTED, border: `1px solid ${BORDER}`, borderRadius: '6px', padding: '5px 8px', cursor: 'pointer', fontSize: '11px' }}>✗</button>
+                                  </div>
+                                ) : (
+                                  <button onClick={() => setConfirmDeleteId(appt.id)} style={{ background: 'rgba(239,68,68,0.1)', border: '1px solid rgba(239,68,68,0.25)', borderRadius: '8px', padding: '6px 8px', cursor: 'pointer', color: '#ef4444' }}>
+                                    <Trash2 size={13} />
+                                  </button>
+                                )
+                              )}
+                            </div>
                           </div>
-                          <StatusDropdown
-                            current={appt.status}
-                            loading={updatingId === appt.ref}
-                            onChange={(s) => handleStatusChange(appt.ref, s)}
-                            meta={meta}
-                          />
-                        </div>
-                        {/* Details */}
-                        <div className="grid grid-cols-3 gap-2">
-                          <div className="rounded-lg px-3 py-2" style={{ background: CARD_BG }}>
-                            <p style={{ ...S.muted, fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Service</p>
-                            <p style={{ ...S.text, fontSize: '12px', fontWeight: 600, marginTop: 2 }}>{appt.serviceLabel}</p>
+                          {/* Details */}
+                          <div className="grid grid-cols-3 gap-2">
+                            <div className="rounded-lg px-3 py-2" style={{ background: CARD_BG }}>
+                              <p style={{ ...S.muted, fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Service</p>
+                              <p style={{ ...S.text, fontSize: '12px', fontWeight: 600, marginTop: 2 }}>{appt.serviceLabel}</p>
+                            </div>
+                            <div className="rounded-lg px-3 py-2" style={{ background: CARD_BG }}>
+                              <p style={{ ...S.muted, fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Date</p>
+                              <p style={{ ...S.text, fontSize: '12px', fontWeight: 600, marginTop: 2 }}>{appt.date}</p>
+                            </div>
+                            <div className="rounded-lg px-3 py-2" style={{ background: CARD_BG }}>
+                              <p style={{ ...S.muted, fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Créneau</p>
+                              <p style={{ ...S.text, fontSize: '12px', fontWeight: 600, marginTop: 2 }}>{appt.slot}</p>
+                            </div>
                           </div>
-                          <div className="rounded-lg px-3 py-2" style={{ background: CARD_BG }}>
-                            <p style={{ ...S.muted, fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Date</p>
-                            <p style={{ ...S.text, fontSize: '12px', fontWeight: 600, marginTop: 2 }}>{appt.date}</p>
-                          </div>
-                          <div className="rounded-lg px-3 py-2" style={{ background: CARD_BG }}>
-                            <p style={{ ...S.muted, fontSize: '9px', textTransform: 'uppercase', letterSpacing: '0.5px' }}>Créneau</p>
-                            <p style={{ ...S.text, fontSize: '12px', fontWeight: 600, marginTop: 2 }}>{appt.slot}</p>
-                          </div>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </>
-            )}
+                        </motion.div>
+                      );
+                    })}
+                  </div>
+                </>
+              )}
+            </div>
           </motion.div>
         )}
 

@@ -34,6 +34,19 @@ function isRecent(dateStr: string, minutes = 60) {
   return Date.now() - new Date(dateStr).getTime() < minutes * 60 * 1000;
 }
 
+function formatDate(dateStr: string): string {
+  const d = new Date(dateStr);
+  const now = Date.now();
+  const diff = now - d.getTime();
+  const mins = Math.floor(diff / 60000);
+  if (mins < 60) return `Il y a ${mins < 1 ? 1 : mins} min`;
+  const hrs = Math.floor(diff / 3600000);
+  if (hrs < 24) return `Il y a ${hrs}h`;
+  const days = Math.floor(diff / 86400000);
+  if (days < 7) return `Il y a ${days}j`;
+  return d.toLocaleDateString('fr-FR', { day: 'numeric', month: 'short', year: days > 365 ? '2-digit' : undefined });
+}
+
 const PAGE_SIZES = [12, 24, 48] as const;
 
 function Pagination({ page, totalPages, total, pageSize, from, to, onPage, onPageSize, CARD_BG, BORDER, TEXT, MUTED, GOLD }: {
@@ -321,6 +334,7 @@ export default function AdminProducts() {
                       )}
                     </div>
                     <p style={{ color: MUTED, fontSize: '11px', fontFamily: FONT }}>{product.collection}</p>
+                    <p style={{ color: MUTED, fontSize: '10px', fontFamily: FONT, opacity: 0.7 }}>{formatDate(product.createdAt)}</p>
                   </div>
 
                   {/* Category */}
@@ -417,6 +431,7 @@ export default function AdminProducts() {
                         {highlight && <span style={{ padding: '1px 5px', borderRadius: '99px', background: 'rgba(201,162,39,0.15)', color: GOLD, fontSize: '9px', fontWeight: 800, fontFamily: FONT }}>RÉCENT</span>}
                       </div>
                       <p style={{ color: MUTED, fontSize: '11px', fontFamily: FONT }}>{product.collection} · <span style={{ textTransform: 'capitalize' }}>{product.category}</span></p>
+                      <p style={{ color: MUTED, fontSize: '10px', fontFamily: FONT, opacity: 0.7 }}>{formatDate(product.createdAt)}</p>
                       <div className="flex items-center gap-3 mt-1">
                         <span style={{ color: GOLD, fontSize: '13px', fontWeight: 800, fontFamily: FONT }}>{formatPrice(product.price)}</span>
                         <span style={{ color: stockLow ? '#ef4444' : MUTED, fontSize: '11px', fontWeight: stockLow ? 700 : 500, fontFamily: FONT }}>

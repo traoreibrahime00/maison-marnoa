@@ -16,3 +16,15 @@ analyticsRouter.post(
     res.status(201).json(event);
   })
 );
+
+analyticsRouter.get(
+  '/summary',
+  asyncHandler(async (req, res) => {
+    const days = Math.min(Number(req.query.days || 30), 365);
+    const [summary, topPages] = await Promise.all([
+      analyticsService.summary(days),
+      analyticsService.topPages(days),
+    ]);
+    res.json({ ...summary, topPages });
+  })
+);

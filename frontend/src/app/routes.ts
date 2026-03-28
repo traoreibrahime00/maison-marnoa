@@ -24,6 +24,7 @@ import AdminSettings from './pages/admin/AdminSettings';
 import AdminAppointments from './pages/admin/AdminAppointments';
 import AdminShipping from './pages/admin/AdminShipping';
 import AdminPromos from './pages/admin/AdminPromos';
+import AdminAnalytics from './pages/admin/AdminAnalytics';
 import NotFound from './pages/NotFound';
 export const router = createBrowserRouter([
   {
@@ -91,6 +92,11 @@ export const router = createBrowserRouter([
     path: '/admin/promos',
     Component: AdminLayout,
     children: [{ index: true, Component: AdminPromos }],
+  },
+  {
+    path: '/admin/analytics',
+    Component: AdminLayout,
+    children: [{ index: true, Component: AdminAnalytics }],
   },
   { path: '*', Component: NotFound },
 ]);

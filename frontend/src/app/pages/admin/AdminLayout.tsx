@@ -1,7 +1,7 @@
 import { useEffect, useState } from 'react';
 import { Outlet, useNavigate, useLocation, Link } from 'react-router';
 import { motion, AnimatePresence } from 'motion/react';
-import { LayoutGrid, LogOut, Plus, Home, Package, ShoppingCart, BarChart3, Settings, CalendarDays, Truck, Tag, Sun, Moon, Menu, X } from 'lucide-react';
+import { LayoutGrid, LogOut, Plus, Home, Package, ShoppingCart, BarChart3, Settings, CalendarDays, Truck, Tag, Sun, Moon, Menu, X, Users } from 'lucide-react';
 import { MaisonMarnoaLogo } from '../../components/MaisonMarnoaLogo';
 import { apiUrl } from '../../lib/api';
 import { useApp, useColors } from '../../context/AppContext';
@@ -48,22 +48,24 @@ export default function AdminLayout() {
   }
 
   const nav = [
-    { path: '/admin/dashboard', icon: BarChart3,    label: 'Dashboard' },
-    { path: '/admin/orders',    icon: ShoppingCart,  label: 'Commandes' },
-    { path: '/admin/products',  icon: Package,       label: 'Produits' },
+    { path: '/admin/dashboard',  icon: BarChart3,    label: 'Dashboard' },
+    { path: '/admin/analytics',  icon: Users,        label: 'Audience' },
+    { path: '/admin/orders',     icon: ShoppingCart, label: 'Commandes' },
+    { path: '/admin/products',   icon: Package,      label: 'Produits' },
     { path: '/admin/appointments', icon: CalendarDays, label: 'Showroom' },
-    { path: '/admin/shipping',  icon: Truck,         label: 'Livraison' },
-    { path: '/admin/promos',    icon: Tag,           label: 'Promos' },
-    { path: '/admin/settings',  icon: Settings,      label: 'Paramètres' },
+    { path: '/admin/shipping',   icon: Truck,        label: 'Livraison' },
+    { path: '/admin/promos',     icon: Tag,          label: 'Promos' },
+    { path: '/admin/settings',   icon: Settings,     label: 'Paramètres' },
   ];
 
   const pageTitle =
-    location.pathname.startsWith('/admin/dashboard')    ? 'Dashboard'
-    : location.pathname.startsWith('/admin/orders')     ? 'Commandes'
+    location.pathname.startsWith('/admin/dashboard')      ? 'Dashboard'
+    : location.pathname.startsWith('/admin/analytics')    ? 'Audience'
+    : location.pathname.startsWith('/admin/orders')       ? 'Commandes'
     : location.pathname.startsWith('/admin/appointments') ? 'Showroom'
-    : location.pathname.startsWith('/admin/shipping')   ? 'Livraison'
-    : location.pathname.startsWith('/admin/promos')     ? 'Promos'
-    : location.pathname.startsWith('/admin/settings')   ? 'Paramètres'
+    : location.pathname.startsWith('/admin/shipping')     ? 'Livraison'
+    : location.pathname.startsWith('/admin/promos')       ? 'Promos'
+    : location.pathname.startsWith('/admin/settings')     ? 'Paramètres'
     : 'Produits';
 
   const showNewProductAction = location.pathname.startsWith('/admin/products');

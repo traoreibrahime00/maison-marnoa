@@ -7,6 +7,7 @@ import { SplashScreen } from '../components/SplashScreen';
 import { DesktopHeader } from '../components/DesktopHeader';
 import { ReassuranceBanner } from '../components/ReassuranceBanner';
 import { useApp } from '../context/AppContext';
+import { usePageTracking } from '../lib/analytics';
 import { motion, AnimatePresence } from 'motion/react';
 
 const HIDE_NAV_PATHS = ['/checkout', '/order-confirmation', '/login'];
@@ -22,6 +23,7 @@ export default function Root() {
   const location = useLocation();
   const { darkMode } = useApp();
   const [showSplash, setShowSplash] = useState(() => !sessionStorage.getItem('mn_splash_shown'));
+  usePageTracking();
 
   // Scroll to top on every route change
   useEffect(() => { window.scrollTo({ top: 0, behavior: 'instant' }); }, [location.pathname]);

@@ -5,7 +5,7 @@ import {
   LineChart, Line, BarChart, Bar, XAxis, YAxis, CartesianGrid,
   Tooltip, ResponsiveContainer,
 } from 'recharts';
-import { TrendingUp, ShoppingBag, Package, AlertTriangle, Bell, Trash2, X, RefreshCw, MessageCircle } from 'lucide-react';
+import { TrendingUp, ShoppingBag, Package, AlertTriangle, Bell, Trash2, X, RefreshCw, MessageCircle, Users, Eye, FileText } from 'lucide-react';
 import { useColors } from '../../context/AppContext';
 import { toast } from 'sonner';
 
@@ -31,6 +31,37 @@ type DashboardResponse = {
   salesByDay: Array<{ date: string; amount: number; orders: number }>;
   topProducts: Array<{ productId: string | null; productName: string; quantitySold: number; revenue: number }>;
   notifications: Notif[];
+};
+
+type AnalyticsSummary = {
+  totals: Record<string, number>;
+  pageViewTimeline: Array<{ date: string; views: number }>;
+  topPages: Array<{ path: string; views: number }>;
+};
+
+function PageViewTooltip({ active, payload, label }: { active?: boolean; payload?: Array<{ value: number }>; label?: string }) {
+  const { CARD_BG, BORDER, MUTED, TEXT } = useColors();
+  if (!active || !payload?.length) return null;
+  return (
+    <div style={{ background: CARD_BG, border: `1px solid ${BORDER}`, borderRadius: '12px', padding: '10px 14px' }}>
+      <p style={{ color: MUTED, fontSize: '11px', fontFamily: FONT, marginBottom: '4px' }}>{label}</p>
+      <p style={{ color: TEXT, fontSize: '14px', fontWeight: 700, fontFamily: FONT }}>{payload[0]?.value ?? 0} vues</p>
+    </div>
+  );
+}
+
+const PAGE_LABELS: Record<string, string> = {
+  '/': 'Accueil',
+  '/collection': 'Collection',
+  '/collections': 'Collection',
+  '/cart': 'Panier',
+  '/checkout': 'Checkout',
+  '/wishlist': 'Favoris',
+  '/appointment': 'Rendez-vous',
+  '/login': 'Connexion',
+  '/search': 'Recherche',
+  '/orders': 'Commandes',
+  '/profile': 'Profil',
 };
 
 const STATUS_FR: Record<string, string> = {
@@ -84,16 +115,24 @@ export default function AdminDashboard() {
   const [deletingId, setDeletingId]   = useState<string | null>(null);
   const [clearConfirm, setClearConfirm] = useState(false);
   const [clearing, setClearing] = useState(false);
+  const [analytics, setAnalytics] = useState<AnalyticsSummary | null>(null);
 
   useEffect(() => {
     let cancelled = false;
     (async () => {
       setLoading(true); setError('');
       try {
-        const res  = await fetch(apiUrl('/api/admin/dashboard'), { credentials: 'include' });
-        if (!res.ok) throw new Error('Failed');
-        const json = await res.json() as DashboardResponse;
+        const [dashRes, analyticsRes] = await Promise.all([
+          fetch(apiUrl('/api/admin/dashboard'), { credentials: 'include' }),
+          fetch(apiUrl('/api/track/summary?days=30'), { credentials: 'include' }),
+        ]);
+        if (!dashRes.ok) throw new Error('Failed');
+        const json = await dashRes.json() as DashboardResponse;
         if (!cancelled) { setData(json); setNotifs(json.notifications ?? []); }
+        if (analyticsRes.ok) {
+          const analyticsJson = await analyticsRes.json() as AnalyticsSummary;
+          if (!cancelled) setAnalytics(analyticsJson);
+        }
       } catch {
         if (!cancelled) setError('Impossible de charger le dashboard.');
       } finally {
@@ -202,6 +241,81 @@ export default function AdminDashboard() {
           </div>
         ))}
       </div>
+
+      {/* ── Analytics ── */}
+      {analytics && (
+        <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+          {/* KPIs visiteurs */}
+          <div className="rounded-2xl p-5" style={{ background: CARD_BG, border: `1px solid ${BORDER}` }}>
+            <h3 style={{ color: GOLD, fontSize: '13px', fontWeight: 700, fontFamily: FONT, marginBottom: '16px' }}>
+              Audience — 30 derniers jours
+            </h3>
+            <div className="grid grid-cols-3 gap-3">
+              {[
+                { label: 'Sessions', value: analytics.totals['SESSION_START'] ?? 0, icon: Users, color: '#3b82f6', bg: 'rgba(59,130,246,0.08)' },
+                { label: 'Pages vues', value: analytics.totals['PAGE_VIEW'] ?? 0, icon: Eye, color: '#C9A227', bg: 'rgba(201,162,39,0.08)' },
+                { label: 'Vues produits', value: analytics.totals['PRODUCT_VIEW'] ?? 0, icon: FileText, color: '#a78bfa', bg: 'rgba(167,139,250,0.08)' },
+              ].map(stat => (
+                <div key={stat.label} className="rounded-xl p-3" style={{ background: BG }}>
+                  <div className="w-7 h-7 rounded-lg flex items-center justify-center mb-2" style={{ background: stat.bg }}>
+                    <stat.icon size={13} color={stat.color} />
+                  </div>
+                  <p style={{ color: TEXT, fontSize: '20px', fontWeight: 800, fontFamily: FONT, lineHeight: 1 }}>{stat.value}</p>
+                  <p style={{ color: MUTED, fontSize: '10px', fontFamily: FONT, marginTop: '4px' }}>{stat.label}</p>
+                </div>
+              ))}
+            </div>
+
+            {/* Top pages */}
+            {analytics.topPages.length > 0 && (
+              <div className="mt-4">
+                <p style={{ color: MUTED, fontSize: '11px', fontWeight: 600, letterSpacing: '0.4px', textTransform: 'uppercase', fontFamily: FONT, marginBottom: '10px' }}>
+                  Pages populaires
+                </p>
+                <div className="flex flex-col gap-2">
+                  {analytics.topPages.slice(0, 5).map(p => {
+                    const maxViews = analytics.topPages[0]?.views ?? 1;
+                    const pct = Math.round((p.views / maxViews) * 100);
+                    const label = p.path.startsWith('/product/') ? 'Produit' : (PAGE_LABELS[p.path] ?? p.path);
+                    return (
+                      <div key={p.path}>
+                        <div className="flex justify-between mb-1">
+                          <span style={{ color: MUTED, fontSize: '11px', fontFamily: FONT }}>{label}</span>
+                          <span style={{ color: TEXT, fontSize: '11px', fontWeight: 700, fontFamily: FONT }}>{p.views}</span>
+                        </div>
+                        <div style={{ height: '3px', background: BORDER, borderRadius: '2px', overflow: 'hidden' }}>
+                          <div style={{ width: `${pct}%`, height: '100%', background: '#C9A227', borderRadius: '2px' }} />
+                        </div>
+                      </div>
+                    );
+                  })}
+                </div>
+              </div>
+            )}
+          </div>
+
+          {/* Page views chart */}
+          {analytics.pageViewTimeline.length > 0 && (
+            <div className="rounded-2xl p-5" style={{ background: CARD_BG, border: `1px solid ${BORDER}` }}>
+              <h3 style={{ color: GOLD, fontSize: '13px', fontWeight: 700, fontFamily: FONT, marginBottom: '18px' }}>
+                Pages vues / jour
+              </h3>
+              <ResponsiveContainer width="100%" height={200}>
+                <LineChart
+                  data={analytics.pageViewTimeline.slice(-30).map(d => ({ ...d, label: d.date.slice(5) }))}
+                  margin={{ top: 4, right: 8, left: 0, bottom: 0 }}
+                >
+                  <CartesianGrid strokeDasharray="3 3" stroke={BORDER} vertical={false} />
+                  <XAxis dataKey="label" tick={{ fill: MUTED, fontSize: 11, fontFamily: FONT }} axisLine={false} tickLine={false} />
+                  <YAxis tick={{ fill: MUTED, fontSize: 10, fontFamily: FONT }} axisLine={false} tickLine={false} width={30} />
+                  <Tooltip content={<PageViewTooltip />} />
+                  <Line type="monotone" dataKey="views" stroke="#3b82f6" strokeWidth={2.5} dot={{ fill: '#3b82f6', r: 3, strokeWidth: 0 }} activeDot={{ r: 5, fill: '#60a5fa', strokeWidth: 0 }} />
+                </LineChart>
+              </ResponsiveContainer>
+            </div>
+          )}
+        </div>
+      )}
 
       {/* ── Sales chart ── */}
       {salesChartData.length > 0 && (

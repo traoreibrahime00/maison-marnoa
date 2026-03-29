@@ -2,7 +2,7 @@ import { useState } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
 import { X, MessageCircle } from 'lucide-react';
 
-const WHATSAPP_NUMBER = '2250102528848';
+const WHATSAPP_NUMBER = '2250101466991';
 const WHATSAPP_MESSAGE = encodeURIComponent("Bonjour Maison Marnoa, je souhaite obtenir des informations sur vos bijoux.");
 
 export function WhatsAppButton() {

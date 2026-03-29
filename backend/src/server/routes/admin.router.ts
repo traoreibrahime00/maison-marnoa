@@ -129,7 +129,7 @@ adminRouter.get(
   '/general-settings',
   asyncHandler(async (_req, res) => {
     const [waNumber, giftWrapFee] = await Promise.all([
-      shippingService.getSetting('wa_number', '2250102528848'),
+      shippingService.getSetting('wa_number', '2250101466991'),
       shippingService.getSetting('gift_wrap_fee', '2500'),
     ]);
     res.json({ waNumber, giftWrapFee: Number(giftWrapFee) });
@@ -149,7 +149,7 @@ adminRouter.patch(
     }
     await Promise.all(ops);
     const [waNumber, giftWrapFee] = await Promise.all([
-      shippingService.getSetting('wa_number', '2250102528848'),
+      shippingService.getSetting('wa_number', '2250101466991'),
       shippingService.getSetting('gift_wrap_fee', '2500'),
     ]);
     res.json({ waNumber, giftWrapFee: Number(giftWrapFee) });

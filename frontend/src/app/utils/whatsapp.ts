@@ -6,7 +6,7 @@
 import { apiUrl } from '../lib/api';
 
 // Numéro WhatsApp — priorité : DB (via API) > env var > fallback
-export let WA_NUMBER = import.meta.env.VITE_WA_NUMBER || '2250102528848';
+export let WA_NUMBER = import.meta.env.VITE_WA_NUMBER || '2250101466991';
 
 // Fetch the number from DB on first use and update the module variable
 fetch(apiUrl('/api/admin/general-settings'))

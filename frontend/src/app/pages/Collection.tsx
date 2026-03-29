@@ -1,6 +1,7 @@
 import { useApp, useProducts } from '../context/AppContext';
 import { useState, useCallback } from 'react';
 import { useNavigate, useSearchParams, useLocation } from 'react-router';
+import { useSEO } from '../hooks/useSEO';
 import { Search, SlidersHorizontal, ChevronDown, X, Check } from 'lucide-react';
 import { motion, AnimatePresence } from 'motion/react';
 import { categories as STATIC_CATEGORIES, formatPrice } from '../data/products';
@@ -83,6 +84,38 @@ export default function Collection() {
       .sort()
       .map(id => ({ id, label: labelMap[id] ?? id.charAt(0).toUpperCase() + id.slice(1) })),
   ];
+  const categoryLabel = activeCategory === 'all'
+    ? 'Tous nos bijoux'
+    : (labelMap[activeCategory] ?? activeCategory);
+  const categoryDesc: Record<string, string> = {
+    bague: 'Découvrez nos bagues en or, diamants et pierres précieuses — des créations uniques pensées pour sublimer chaque occasion.',
+    collier: 'Colliers et pendentifs de luxe en or et pierres précieuses, créés avec soin pour sublimer votre style à Abidjan.',
+    bracelet: 'Bracelets en or jaune, blanc et rose — des pièces élégantes qui racontent une histoire, la vôtre.',
+    montre: 'Montres de luxe pour homme et femme — l\'alliance du temps et de l\'élégance, disponibles en Côte d\'Ivoire.',
+    boucles: 'Boucles d\'oreilles en or et pierres précieuses — des détails qui font toute la différence.',
+  };
+
+  useSEO({
+    title: activeCategory === 'all' ? 'Collection — Bijoux de Luxe' : `${categoryLabel} de Luxe`,
+    description: categoryDesc[activeCategory] ?? `Découvrez notre sélection de ${categoryLabel.toLowerCase()} de luxe chez Maison Marnoa, Abidjan.`,
+    canonical: activeCategory === 'all' ? '/collection' : `/collection?category=${activeCategory}`,
+    jsonLd: {
+      '@context': 'https://schema.org',
+      '@type': 'CollectionPage',
+      name: `${categoryLabel} — Maison Marnoa`,
+      description: categoryDesc[activeCategory] ?? `Collection de ${categoryLabel.toLowerCase()} de luxe`,
+      url: `https://maisonmarnoa.com/collection${activeCategory !== 'all' ? `?category=${activeCategory}` : ''}`,
+      breadcrumb: {
+        '@type': 'BreadcrumbList',
+        itemListElement: [
+          { '@type': 'ListItem', position: 1, name: 'Accueil', item: 'https://maisonmarnoa.com/' },
+          { '@type': 'ListItem', position: 2, name: 'Collection', item: 'https://maisonmarnoa.com/collection' },
+          ...(activeCategory !== 'all' ? [{ '@type': 'ListItem', position: 3, name: categoryLabel, item: `https://maisonmarnoa.com/collection?category=${activeCategory}` }] : []),
+        ],
+      },
+    },
+  });
+
   const [sortBy, setSortBy] = useState('featured');
   const [showSort, setShowSort] = useState(false);
   const [searchQuery, setSearchQuery] = useState('');

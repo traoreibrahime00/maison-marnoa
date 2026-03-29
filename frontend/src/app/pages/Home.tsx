@@ -9,6 +9,7 @@ import { SkeletonList, SkeletonHorizontal } from '../components/SkeletonCard';
 import { ProductCard } from '../components/ProductCard';
 import { trackEvent } from '../lib/analytics';
 import { apiUrl } from '../lib/api';
+import { useSEO, DEFAULT_DESCRIPTION } from '../hooks/useSEO';
 
 type HeroSettings = {
   mediaUrl: string; mediaType: string;
@@ -83,6 +84,18 @@ export default function Home() {
   const heroRef = useRef<HTMLDivElement>(null);
   const { scrollYProgress } = useScroll({ target: heroRef, offset: ['start start', 'end start'] });
   const heroImgY = useTransform(scrollYProgress, [0, 1], ['0%', '18%']);
+
+  useSEO({
+    canonical: '/',
+    jsonLd: {
+      '@context': 'https://schema.org',
+      '@type': 'WebPage',
+      name: 'Maison Marnoa — Haute Joaillerie à Abidjan',
+      description: DEFAULT_DESCRIPTION,
+      url: 'https://maisonmarnoa.com/',
+      breadcrumb: { '@type': 'BreadcrumbList', itemListElement: [{ '@type': 'ListItem', position: 1, name: 'Accueil', item: 'https://maisonmarnoa.com/' }] },
+    },
+  });
 
   useEffect(() => { const t = setTimeout(() => setLoading(false), 900); return () => clearTimeout(t); }, []);
   useEffect(() => { trackEvent({ type: 'VISIT_HOME' }); }, []);

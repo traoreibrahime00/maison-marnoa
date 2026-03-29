@@ -1,0 +1,13 @@
+User-agent: *
+Allow: /
+
+# Exclure les pages admin et privées
+Disallow: /admin/
+Disallow: /cart
+Disallow: /checkout
+Disallow: /order-confirmation
+Disallow: /profile
+Disallow: /orders
+Disallow: /reset-password
+
+Sitemap: https://maisonmarnoa.com/sitemap.xml

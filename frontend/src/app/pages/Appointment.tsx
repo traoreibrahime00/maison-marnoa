@@ -14,6 +14,7 @@ import {
   type AppointmentPayload,
 } from '../utils/whatsapp';
 import { apiUrl } from '../lib/api';
+import { useSEO } from '../hooks/useSEO';
 
 const FALLBACK_SLOTS = ['09:00', '10:00', '11:00', '14:00', '15:00', '16:00', '17:00'];
 
@@ -97,6 +98,22 @@ export default function Appointment() {
   const navigate = useNavigate();
   const { currentUser, isLoggedIn } = useApp();
   const { BG, CARD_BG, BORDER, TEXT, MUTED, GOLD } = useColors();
+
+  useSEO({
+    title: 'Showroom Abidjan — Prendre Rendez-vous',
+    description: "Visitez notre showroom à Abidjan et découvrez nos bijoux en exclusivité. Prenez rendez-vous avec nos conseillers pour un accompagnement personnalisé.",
+    canonical: '/appointment',
+    jsonLd: {
+      '@context': 'https://schema.org',
+      '@type': 'LocalBusiness',
+      name: 'Maison Marnoa Showroom',
+      description: 'Showroom de bijoux de luxe à Abidjan — prenez rendez-vous pour découvrir nos créations en exclusivité.',
+      url: 'https://maisonmarnoa.com/appointment',
+      address: { '@type': 'PostalAddress', addressLocality: 'Abidjan', addressCountry: 'CI' },
+      openingHours: 'Mo-Sa 09:00-18:00',
+      hasMap: 'https://maisonmarnoa.com/appointment',
+    },
+  });
 
   const [step, setStep] = useState<'service' | 'datetime' | 'form' | 'confirmed'>('service');
   const [selectedService, setSelectedService] = useState('');

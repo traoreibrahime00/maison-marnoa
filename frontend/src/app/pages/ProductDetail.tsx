@@ -10,6 +10,7 @@ import { formatPrice, IMAGES, Product } from '../data/products';
 import { useApp, useColors, useProducts } from '../context/AppContext';
 import { toast } from 'sonner';
 import { trackEvent } from '../lib/analytics';
+import { useSEO } from '../hooks/useSEO';
 
 const GOLD = '#C9A227';
 
@@ -43,6 +44,47 @@ export default function ProductDetail() {
   const ctaRef = useRef<HTMLDivElement>(null);
   const touchStartX = useRef<number | null>(null);
   const touchEndX = useRef<number | null>(null);
+
+  useSEO(product ? {
+    title: `${product.name} — ${product.collection}`,
+    description: `${product.description} ${product.material}. Livraison en Côte d'Ivoire et Afrique de l'Ouest.`,
+    canonical: `/product/${product.id}`,
+    image: product.image,
+    jsonLd: {
+      '@context': 'https://schema.org',
+      '@type': 'Product',
+      name: product.name,
+      description: product.description,
+      image: product.images,
+      sku: product.id,
+      brand: { '@type': 'Brand', name: 'Maison Marnoa' },
+      material: product.material,
+      offers: {
+        '@type': 'Offer',
+        url: `https://maisonmarnoa.com/product/${product.id}`,
+        priceCurrency: 'XOF',
+        price: product.price,
+        availability: (product.stock ?? 1) > 0
+          ? 'https://schema.org/InStock'
+          : 'https://schema.org/OutOfStock',
+        seller: { '@type': 'Organization', name: 'Maison Marnoa' },
+      },
+      aggregateRating: product.reviews > 0 ? {
+        '@type': 'AggregateRating',
+        ratingValue: product.rating,
+        reviewCount: product.reviews,
+        bestRating: 5,
+      } : undefined,
+      breadcrumb: {
+        '@type': 'BreadcrumbList',
+        itemListElement: [
+          { '@type': 'ListItem', position: 1, name: 'Accueil', item: 'https://maisonmarnoa.com/' },
+          { '@type': 'ListItem', position: 2, name: 'Collection', item: 'https://maisonmarnoa.com/collection' },
+          { '@type': 'ListItem', position: 3, name: product.name, item: `https://maisonmarnoa.com/product/${product.id}` },
+        ],
+      },
+    },
+  } : {});
 
   useEffect(() => {
     if (id) trackEvent({ type: 'PRODUCT_VIEW', productId: id });

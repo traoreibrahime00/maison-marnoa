@@ -1,9 +1,11 @@
-services:
+name: marnoa
 
+services:
   postgres:
     image: postgres:16-alpine
     container_name: marnoa_postgres
     restart: unless-stopped
+    env_file: ../.env.production
     environment:
       POSTGRES_USER: ${POSTGRES_USER:-marnoa}
       POSTGRES_PASSWORD: ${POSTGRES_PASSWORD}
@@ -41,11 +43,9 @@ services:
         VITE_CLOUDINARY_UPLOAD_PRESET: ${VITE_CLOUDINARY_UPLOAD_PRESET}
     container_name: marnoa_frontend
     restart: unless-stopped
+    env_file: ../.env.production
     ports:
-      - "80:80"
-      - "443:443"
-    volumes:
-      - /etc/letsencrypt:/etc/letsencrypt:ro
+      - "127.0.0.1:3002:80"
     depends_on:
       - backend
 

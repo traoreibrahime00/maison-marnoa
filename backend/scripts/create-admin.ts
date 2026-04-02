@@ -7,9 +7,15 @@ dotenv.config({ path: path.resolve(process.cwd(), '.env') });
 
 const prisma = new PrismaClient();
 
-const EMAIL = 'contact@maisonmarnoa.com';
-const PASSWORD = 'maisonmarnoa@21';
-const NAME = 'Admin Marnoa';
+const EMAIL = process.argv[2] || process.env.ADMIN_EMAIL;
+const PASSWORD = process.argv[3] || process.env.ADMIN_PASSWORD;
+const NAME = process.argv[4] || process.env.ADMIN_NAME || 'Admin Marnoa';
+
+if (!EMAIL || !PASSWORD) {
+  console.error('Usage: npm run create:admin -- <email> <password> [name]');
+  console.error('   ou: ADMIN_EMAIL=... ADMIN_PASSWORD=... npm run create:admin');
+  process.exit(1);
+}
 
 async function main() {
   // Import dynamique pour ESM compat
@@ -23,11 +29,11 @@ async function main() {
     return;
   }
 
-  const hashed = await hashPassword(PASSWORD);
+  const hashed = await hashPassword(PASSWORD!);
 
   const user = await prisma.user.create({
     data: {
-      email: EMAIL,
+      email: EMAIL!,
       name: NAME,
       role: 'admin',
       emailVerified: true,

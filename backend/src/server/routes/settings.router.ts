@@ -51,3 +51,13 @@ settingsRouter.get(
     res.json({ bannerUrl, badge, title, subtitle });
   })
 );
+
+settingsRouter.get(
+  '/general',
+  asyncHandler(async (_req, res) => {
+    const [hidePrices] = await Promise.all([
+      shippingService.getSetting('hide_prices', 'false'),
+    ]);
+    res.json({ hidePrices: hidePrices === 'true' });
+  })
+);

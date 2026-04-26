@@ -8,7 +8,7 @@ import { uploadToCloudinary, isCloudinaryConfigured } from '../../lib/cloudinary
 
 const FONT = 'Manrope, sans-serif';
 
-type GeneralSettings = { waNumber: string; giftWrapFee: number };
+type GeneralSettings = { waNumber: string; giftWrapFee: number; hidePrices: boolean };
 type ShippingInfo    = { freeThreshold: number; freeZone: string };
 type HeroSettings = {
   mediaUrl: string; mediaType: string;
@@ -522,7 +522,7 @@ export default function AdminSettings() {
     }).catch(() => {}).finally(() => setLoading(false));
   }, []);
 
-  const save = async (key: keyof GeneralSettings, rawVal: string) => {
+  const save = async (key: Exclude<keyof GeneralSettings, 'hidePrices'>, rawVal: string) => {
     const body = key === 'giftWrapFee'
       ? { giftWrapFee: Number(rawVal) }
       : { waNumber: rawVal.replace(/\D/g, '') };
@@ -718,6 +718,58 @@ export default function AdminSettings() {
             type="number"
             onSave={val => save('giftWrapFee', val)}
           />
+
+          {/* Price Display Toggle */}
+          <div className="rounded-xl p-4" style={{ background: BG, border: `1px solid ${BORDER}` }}>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span style={{ fontSize: '13px', color: GOLD }}>💰</span>
+                <div>
+                  <p style={{ color: TEXT, fontSize: '13px', fontWeight: 700, fontFamily: FONT, marginBottom: '2px' }}>
+                    Afficher les prix
+                  </p>
+                  <p style={{ color: MUTED, fontSize: '11px', fontFamily: FONT }}>
+                    Masquer tous les prix des articles sur le site
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={async () => {
+                  const newValue = !settings?.hidePrices;
+                  setSettings(prev => prev ? { ...prev, hidePrices: newValue } : null);
+                  try {
+                    const res = await fetch(apiUrl('/api/admin/general-settings'), {
+                      method: 'PATCH',
+                      headers: { 'Content-Type': 'application/json' },
+                      credentials: 'include',
+                      body: JSON.stringify({ hidePrices: newValue }),
+                    });
+                    if (!res.ok) throw new Error();
+                    toast(newValue ? 'Prix masqués' : 'Prix affichés');
+                  } catch {
+                    // Revert on error
+                    setSettings(prev => prev ? { ...prev, hidePrices: !newValue } : null);
+                    toast.error('Erreur de sauvegarde');
+                  }
+                }}
+                style={{
+                  width: '44px', height: '24px', borderRadius: '12px',
+                  background: settings?.hidePrices ? '#ef4444' : GOLD,
+                  border: 'none', cursor: 'pointer',
+                  display: 'flex', alignItems: 'center',
+                  padding: '2px', transition: 'background 0.2s',
+                }}
+              >
+                <div
+                  style={{
+                    width: '18px', height: '18px', borderRadius: '50%',
+                    background: '#fff', transform: settings?.hidePrices ? 'translateX(20px)' : 'translateX(0)',
+                    transition: 'transform 0.2s',
+                  }}
+                />
+              </button>
+            </div>
+          </div>
         </div>
       </div>
 

@@ -27,7 +27,7 @@ function StarRating({ rating, size = 12 }: { rating: number; size?: number }) {
 export default function ProductDetail() {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
-  const { addToCart, removeFromCart, updateQuantity, toggleWishlist, isWishlisted, cartItems } = useApp();
+  const { addToCart, removeFromCart, updateQuantity, toggleWishlist, isWishlisted, cartItems, hidePrices } = useApp();
   const { BG, CARD_BG, BORDER, TEXT, MUTED } = useColors();
   const products = useProducts();
 
@@ -320,32 +320,40 @@ export default function ProductDetail() {
           </h1>
 
           {/* Price */}
-          <div className="flex items-center gap-3 mb-2 flex-wrap">
-            <span style={{ fontWeight: 800, fontSize: '26px', background: 'linear-gradient(135deg,#B8860B,#D4AF35)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
-              {formatPrice(product.price)}
-            </span>
-            {product.originalPrice && product.originalPrice > product.price && (
-              <>
-                <span style={{ color: MUTED, fontSize: '14px', textDecoration: 'line-through' }}>
-                  {formatPrice(product.originalPrice)}
-                </span>
-                <span style={{ background: '#ef4444', color: '#fff', fontSize: '11px', fontWeight: 700, padding: '2px 8px', borderRadius: '20px' }}>
-                  -{Math.round((1 - product.price / product.originalPrice) * 100)}%
-                </span>
-              </>
-            )}
-          </div>
-          {product.originalPrice && product.originalPrice > product.price && (
+          {hidePrices ? (
+            <div className="flex items-center justify-center py-3 mb-2">
+              <span style={{ fontSize: '16px', color: MUTED, fontStyle: 'italic', fontWeight: 600 }}>Prix sur demande</span>
+            </div>
+          ) : (
+            <div className="flex items-center gap-3 mb-2 flex-wrap">
+              <span style={{ fontWeight: 800, fontSize: '26px', background: 'linear-gradient(135deg,#B8860B,#D4AF35)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
+                {formatPrice(product.price)}
+              </span>
+              {product.originalPrice && product.originalPrice > product.price && (
+                <>
+                  <span style={{ color: MUTED, fontSize: '14px', textDecoration: 'line-through' }}>
+                    {formatPrice(product.originalPrice)}
+                  </span>
+                  <span style={{ background: '#ef4444', color: '#fff', fontSize: '11px', fontWeight: 700, padding: '2px 8px', borderRadius: '20px' }}>
+                    -{Math.round((1 - product.price / product.originalPrice) * 100)}%
+                  </span>
+                </>
+              )}
+            </div>
+          )}
+          {!hidePrices && product.originalPrice && product.originalPrice > product.price && (
             <p style={{ color: '#22c55e', fontSize: '12px', fontWeight: 600, marginBottom: '4px' }}>
               Vous économisez {formatPrice(product.originalPrice - product.price)}
             </p>
           )}
-          <div className="flex items-center gap-1.5 mb-5">
-            <CreditCard size={12} color={GOLD} />
-            <span style={{ color: MUTED, fontSize: '12px' }}>
-              ou <span style={{ color: GOLD, fontWeight: 600 }}>3×{formatPrice(Math.round(product.price / 3))}</span> sans frais via WhatsApp
-            </span>
-          </div>
+          {!hidePrices && (
+            <div className="flex items-center gap-1.5 mb-5">
+              <CreditCard size={12} color={GOLD} />
+              <span style={{ color: MUTED, fontSize: '12px' }}>
+                ou <span style={{ color: GOLD, fontWeight: 600 }}>3×{formatPrice(Math.round(product.price / 3))}</span> sans frais via WhatsApp
+              </span>
+            </div>
+          )}
 
           {/* Color Variants */}
           {product.colorVariants && product.colorVariants.length > 0 && (
@@ -494,7 +502,9 @@ export default function ProductDetail() {
                   </motion.button>
                 </div>
                 <span style={{ color: MUTED, fontSize: '12px' }}>
-                  = <span style={{ color: TEXT, fontWeight: 700 }}>{formatPrice(product.price * qty)}</span>
+                  = <span style={{ color: TEXT, fontWeight: 700 }}>
+                    {hidePrices ? 'Prix sur demande' : formatPrice(product.price * qty)}
+                  </span>
                 </span>
               </div>
             )}
@@ -612,7 +622,9 @@ export default function ProductDetail() {
                     </div>
                     <div className="p-2.5">
                       <p className="truncate" style={{ color: TEXT, fontWeight: 600, fontSize: '11px', marginBottom: '2px' }}>{p.name}</p>
-                      <p style={{ color: GOLD, fontWeight: 700, fontSize: '11px' }}>{formatPrice(p.price)}</p>
+                      <p style={{ color: GOLD, fontWeight: 700, fontSize: '11px' }}>
+                        {hidePrices ? 'Prix sur demande' : formatPrice(p.price)}
+                      </p>
                     </div>
                   </motion.div>
                 ))}
@@ -638,10 +650,11 @@ export default function ProductDetail() {
               <div className="flex-1 min-w-0">
                 <p className="truncate" style={{ color: TEXT, fontWeight: 600, fontSize: '12px' }}>{product.name}</p>
                 <span style={{ fontWeight: 800, fontSize: '14px', background: 'linear-gradient(135deg,#B8860B,#D4AF35)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
-                  {isInCart
-                    ? formatPrice(product.price * (cartItem?.quantity ?? 1))
-                    : formatPrice(product.price * qty)
-                  }
+                  {hidePrices ? 'Prix sur demande' : (
+                    isInCart
+                      ? formatPrice(product.price * (cartItem?.quantity ?? 1))
+                      : formatPrice(product.price * qty)
+                  )}
                 </span>
               </div>
               {isInCart ? (

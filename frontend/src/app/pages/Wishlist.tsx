@@ -7,7 +7,7 @@ import { toast } from 'sonner';
 
 export default function Wishlist() {
   const navigate = useNavigate();
-  const { wishlist, toggleWishlist, addToCart, togglePriceAlert, hasPriceAlert } = useApp();
+  const { wishlist, toggleWishlist, addToCart, togglePriceAlert, hasPriceAlert, hidePrices } = useApp();
   const { BG, CARD_BG, BORDER, TEXT, MUTED, GOLD } = useColors();
   const products = useProducts();
 
@@ -98,7 +98,7 @@ export default function Wishlist() {
                         <p style={{ color: GOLD, fontWeight: 700, fontSize: '9px', letterSpacing: '1.5px', textTransform: 'uppercase', marginBottom: '2px' }}>{product.collection}</p>
                         <p className="truncate" style={{ color: TEXT, fontWeight: 600, fontSize: '14px', marginBottom: '4px' }}>{product.name}</p>
                         <div style={{ fontWeight: 800, fontSize: '15px', background: 'linear-gradient(135deg, #B8860B, #D4AF35)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent', marginBottom: '8px' }}>
-                          {formatPrice(product.price)}
+                           {hidePrices ? 'Prix sur demande' : formatPrice(product.price)}
                         </div>
 
                         <div className="flex gap-2">

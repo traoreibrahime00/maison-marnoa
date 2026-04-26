@@ -18,6 +18,7 @@ export default function Cart() {
   const {
     cartItems, updateQuantity, removeFromCart, clearCart, cartTotal,
     isGiftWrap, setIsGiftWrap, giftMessage, setGiftMessage,
+    hidePrices,
   } = useApp();
   const { BG, CARD_BG, BORDER, TEXT, MUTED, GOLD } = useColors();
 
@@ -202,11 +203,15 @@ export default function Cart() {
                         </span>
                       ) : remaining <= 10000 ? (
                         <span style={{ color: TEXT, fontWeight: 700, fontSize: '12px' }}>
-                          🔥 Plus que <span style={{ color: '#ef4444', fontWeight: 800 }}>{formatPrice(remaining)}</span> pour la livraison gratuite !
+                          🔥 Plus que <span style={{ color: '#ef4444', fontWeight: 800 }}>
+                            {hidePrices ? 'un peu plus' : formatPrice(remaining)}
+                          </span> pour la livraison gratuite !
                         </span>
                       ) : (
                         <span style={{ color: TEXT, fontWeight: 700, fontSize: '12px' }}>
-                          Ajoutez <span style={{ color: GOLD }}>{formatPrice(remaining)}</span> pour la livraison <strong>gratuite</strong>
+                          Ajoutez <span style={{ color: GOLD }}>
+                            {hidePrices ? 'un peu plus' : formatPrice(remaining)}
+                          </span> pour la livraison <strong>gratuite</strong>
                         </span>
                       )}
                     </div>
@@ -225,7 +230,7 @@ export default function Cart() {
                   </div>
                   {!freeShipping && (
                     <p style={{ color: MUTED, fontSize: '10px', marginTop: '6px' }}>
-                      Livraison {freeZoneName} gratuite dès {formatPrice(freeThreshold)} d'achats
+                      Livraison {freeZoneName} gratuite dès {hidePrices ? 'un certain montant' : formatPrice(freeThreshold)} d'achats
                     </p>
                   )}
                 </motion.div>
@@ -264,7 +269,9 @@ export default function Cart() {
                             </motion.button>
                           </div>
                           <div className="flex items-center gap-3">
-                            <span style={{ color: GOLD, fontWeight: 800, fontSize: '14px' }}>{formatPrice(item.product.price * item.quantity)}</span>
+                            <span style={{ color: GOLD, fontWeight: 800, fontSize: '14px' }}>
+                              {hidePrices ? 'Prix sur demande' : formatPrice(item.product.price * item.quantity)}
+                            </span>
                             <motion.button
                               onClick={() => handleRemove(item.product.id, item.size, item.product.name)}
                               className="w-7 h-7 flex items-center justify-center rounded-lg"
@@ -384,12 +391,16 @@ export default function Cart() {
                 <div className="flex flex-col gap-3">
                   <div className="flex justify-between">
                     <span style={{ color: MUTED, fontSize: '13px' }}>Sous-total</span>
-                    <span style={{ color: TEXT, fontSize: '13px', fontWeight: 600 }}>{formatPrice(cartTotal)}</span>
+                    <span style={{ color: TEXT, fontSize: '13px', fontWeight: 600 }}>
+                      {hidePrices ? 'Prix sur demande' : formatPrice(cartTotal)}
+                    </span>
                   </div>
                   {discount > 0 && (
                     <div className="flex justify-between">
                       <span style={{ color: '#22c55e', fontSize: '13px' }}>Réduction (10%)</span>
-                      <span style={{ color: '#22c55e', fontSize: '13px', fontWeight: 600 }}>-{formatPrice(discount)}</span>
+                      <span style={{ color: '#22c55e', fontSize: '13px', fontWeight: 600 }}>
+                        {hidePrices ? 'Prix sur demande' : `-${formatPrice(discount)}`}
+                      </span>
                     </div>
                   )}
                   {isGiftWrap && (
@@ -398,7 +409,9 @@ export default function Cart() {
                         <Gift size={12} color={MUTED} />
                         <span style={{ color: MUTED, fontSize: '13px' }}>Emballage cadeau</span>
                       </div>
-                      <span style={{ color: TEXT, fontSize: '13px', fontWeight: 600 }}>+{formatPrice(giftWrapFee)}</span>
+                      <span style={{ color: TEXT, fontSize: '13px', fontWeight: 600 }}>
+                        {hidePrices ? 'Prix sur demande' : `+${formatPrice(giftWrapFee)}`}
+                      </span>
                     </div>
                   )}
                   <div className="flex justify-between">
@@ -409,13 +422,13 @@ export default function Cart() {
                       </span>
                     </div>
                     <span style={{ color: (freeShipping || allZonesFree) ? '#22c55e' : TEXT, fontSize: '13px', fontWeight: 600 }}>
-                      {(freeShipping || allZonesFree) ? 'GRATUITE 🎉' : shippingData ? formatPrice(SHIPPING) : '—'}
+                      {(freeShipping || allZonesFree) ? 'GRATUITE 🎉' : hidePrices ? 'Prix sur demande' : shippingData ? formatPrice(SHIPPING) : '—'}
                     </span>
                   </div>
                   <div className="flex justify-between pt-3" style={{ borderTop: `1px solid ${BORDER}` }}>
                     <span style={{ color: TEXT, fontWeight: 700, fontSize: '15px' }}>Total estimé</span>
                     <span style={{ fontWeight: 800, fontSize: '18px', background: 'linear-gradient(135deg, #B8860B, #D4AF35)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
-                      {formatPrice(total)}
+                      {hidePrices ? 'Prix sur demande' : formatPrice(total)}
                     </span>
                   </div>
                 </div>
@@ -447,7 +460,7 @@ export default function Cart() {
             <div className="min-w-0">
               <p style={{ color: MUTED, fontSize: '10px', fontWeight: 600, letterSpacing: '0.5px' }}>TOTAL ESTIMÉ</p>
               <span style={{ fontWeight: 800, fontSize: '17px', background: 'linear-gradient(135deg, #B8860B, #D4AF35)', WebkitBackgroundClip: 'text', WebkitTextFillColor: 'transparent' }}>
-                {formatPrice(total)}
+                {hidePrices ? 'Prix sur demande' : formatPrice(total)}
               </span>
             </div>
             <div className="flex-1">

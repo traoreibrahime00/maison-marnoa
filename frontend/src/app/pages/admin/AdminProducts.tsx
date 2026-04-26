@@ -24,12 +24,6 @@ type ApiProduct = {
   createdAt: string;
 };
 
-const BADGE_FIELDS = [
-  { field: 'isNew'        as const, icon: Sparkles, color: '#C9A227', label: 'Nouveau',   title: 'Afficher le badge "Nouveau" sur ce produit'                          },
-  { field: 'isBestseller' as const, icon: Star,     color: '#22c55e', label: 'Best',      title: 'Afficher le badge "Best-seller" sur ce produit'                      },
-  { field: 'isFeatured'   as const, icon: Zap,      color: '#a78bfa', label: 'Vedette',   title: 'Mettre en avant sur la page d\'accueil (section "Nos coups de cœur")' },
-];
-
 function isRecent(dateStr: string, minutes = 60) {
   return Date.now() - new Date(dateStr).getTime() < minutes * 60 * 1000;
 }
@@ -48,6 +42,89 @@ function formatDate(dateStr: string): string {
 }
 
 const PAGE_SIZES = [12, 24, 48] as const;
+
+const BADGE_FIELDS = [
+  { field: 'isNew'        as const, icon: Sparkles, color: '#C9A227', label: 'Nouveau',   title: 'Afficher le badge "Nouveau" sur ce produit'                          },
+  { field: 'isBestseller' as const, icon: Star,     color: '#f59e0b', label: 'Best',      title: 'Afficher le badge "Best-seller" sur ce produit'                     },
+  { field: 'isFeatured'   as const, icon: Zap,      color: '#8b5cf6', label: 'Featured',  title: 'Afficher le badge "Mis en avant" sur ce produit'                    },
+] as const;
+
+function PriceDisplayToggle() {
+  const { BG, CARD_BG, BORDER, TEXT, MUTED, GOLD } = useColors();
+  const [hidePrices, setHidePrices] = useState(false);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    fetch(apiUrl('/api/admin/general-settings'), { credentials: 'include' })
+      .then(r => r.ok ? r.json() : null)
+      .then((d: { hidePrices: boolean } | null) => {
+        if (d) setHidePrices(d.hidePrices);
+      })
+      .catch(() => {})
+      .finally(() => setLoading(false));
+  }, []);
+
+  const togglePrices = async () => {
+    const newValue = !hidePrices;
+    setHidePrices(newValue);
+    try {
+      const res = await fetch(apiUrl('/api/admin/general-settings'), {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        credentials: 'include',
+        body: JSON.stringify({ hidePrices: newValue }),
+      });
+      if (!res.ok) throw new Error();
+      toast(newValue ? 'Prix masqués' : 'Prix affichés');
+    } catch {
+      setHidePrices(!newValue); // Revert on error
+      toast.error('Erreur de sauvegarde');
+    }
+  };
+
+  if (loading) return null;
+
+  return (
+    <div className="rounded-xl p-4" style={{ background: CARD_BG, border: `1px solid ${BORDER}` }}>
+      <div className="flex items-center justify-between">
+        <div className="flex items-center gap-2">
+          <span style={{ fontSize: '13px', color: GOLD }}>💰</span>
+          <div>
+            <p style={{ color: TEXT, fontSize: '13px', fontWeight: 700, fontFamily: FONT, marginBottom: '2px' }}>
+              Afficher les prix
+            </p>
+            <p style={{ color: MUTED, fontSize: '11px', fontFamily: FONT }}>
+              Masquer tous les prix des articles sur le site
+            </p>
+          </div>
+        </div>
+        <div className="flex items-center gap-3">
+          <button
+            onClick={togglePrices}
+            style={{
+              width: '44px', height: '24px', borderRadius: '12px',
+              background: hidePrices ? '#ef4444' : GOLD,
+              border: 'none', cursor: 'pointer',
+              display: 'flex', alignItems: 'center',
+              padding: '2px', transition: 'background 0.2s',
+            }}
+          >
+            <div
+              style={{
+                width: '18px', height: '18px', borderRadius: '50%',
+                background: '#fff', transform: hidePrices ? 'translateX(20px)' : 'translateX(0)',
+                transition: 'transform 0.2s',
+              }}
+            />
+          </button>
+          <span style={{ color: hidePrices ? '#ef4444' : GOLD, fontSize: '12px', fontWeight: 600, fontFamily: FONT }}>
+            {hidePrices ? 'prix caché' : 'prix visible'}
+          </span>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 function Pagination({ page, totalPages, total, pageSize, from, to, onPage, onPageSize, CARD_BG, BORDER, TEXT, MUTED, GOLD }: {
   page: number; totalPages: number; total: number; pageSize: number;
@@ -271,6 +348,11 @@ export default function AdminProducts() {
             <p style={{ color: warn && value > 0 ? '#ef4444' : TEXT, fontSize: '22px', fontWeight: 800, fontFamily: FONT, lineHeight: 1 }}>{value}</p>
           </div>
         ))}
+      </div>
+
+      {/* ── Price Display Toggle ── */}
+      <div className="mb-5">
+        <PriceDisplayToggle />
       </div>
 
       {/* ── Loading ── */}

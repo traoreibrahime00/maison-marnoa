@@ -17,6 +17,7 @@ export function ProductCard({ product, index = 0 }: ProductCardProps) {
   const navigate = useNavigate();
   const { toggleWishlist, isWishlisted } = useApp();
   const { CARD_BG, BORDER, TEXT, MUTED } = useColors();
+  const { hidePrices } = useApp();
   const wishlisted = isWishlisted(product.id);
   const [hovered, setHovered] = useState(false);
 
@@ -133,14 +134,20 @@ export function ProductCard({ product, index = 0 }: ProductCardProps) {
           <span style={{ fontSize: '9px', color: MUTED, marginLeft: '2px' }}>({product.reviews})</span>
         </div>
         {/* Price */}
-        <div className="flex items-baseline gap-1.5">
-          <span style={{ fontWeight: 800, fontSize: '14px', color: GOLD }}>{formatPrice(product.price)}</span>
-          {product.originalPrice && product.originalPrice > product.price && (
-            <span style={{ fontSize: '10px', color: '#B0A090', textDecoration: 'line-through' }}>
-              {formatPrice(product.originalPrice)}
-            </span>
-          )}
-        </div>
+        {hidePrices ? (
+          <div className="flex items-center justify-center py-2">
+            <span style={{ fontSize: '12px', color: MUTED, fontStyle: 'italic' }}>Prix sur demande</span>
+          </div>
+        ) : (
+          <div className="flex items-baseline gap-1.5">
+            <span style={{ fontWeight: 800, fontSize: '14px', color: GOLD }}>{formatPrice(product.price)}</span>
+            {product.originalPrice && product.originalPrice > product.price && (
+              <span style={{ fontSize: '10px', color: '#B0A090', textDecoration: 'line-through' }}>
+                {formatPrice(product.originalPrice)}
+              </span>
+            )}
+          </div>
+        )}
       </div>
     </motion.div>
   );

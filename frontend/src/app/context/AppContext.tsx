@@ -84,6 +84,8 @@ interface AppContextType {
   darkMode: boolean;
   toggleDarkMode: () => void;
   colors: typeof LIGHT_COLORS;
+  // Price Display
+  hidePrices: boolean;
 }
 
 const AppContext = createContext<AppContextType | null>(null);
@@ -117,6 +119,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [loyaltyPoints, setLoyaltyPoints] = useState<number>(() => loadFromStorage('mn_points', 0));
   const [lastOrderId, setLastOrderId] = useState<string | null>(null);
   const [darkMode, setDarkMode] = useState<boolean>(() => loadFromStorage('mn_dark', false));
+  const [hidePrices, setHidePrices] = useState<boolean>(() => loadFromStorage('mn_hide_prices', false));
   const [isGiftWrap, setIsGiftWrap] = useState(false);
   const [giftMessage, setGiftMessage] = useState('');
   const [allProducts, setAllProducts] = useState<Product[]>([]);
@@ -202,6 +205,17 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => { saveToStorage('mn_logged', isLoggedIn); }, [isLoggedIn]);
   useEffect(() => { saveToStorage('mn_points', loyaltyPoints); }, [loyaltyPoints]);
   useEffect(() => { saveToStorage('mn_dark', darkMode); }, [darkMode]);
+  useEffect(() => { saveToStorage('mn_hide_prices', hidePrices); }, [hidePrices]);
+
+  // Fetch general settings
+  useEffect(() => {
+    fetch(apiUrl('/api/settings/general'))
+      .then(r => r.ok ? r.json() : null)
+      .then((d: { hidePrices: boolean } | null) => {
+        if (d) setHidePrices(d.hidePrices);
+      })
+      .catch(() => {}); // Ignore errors, keep default
+  }, []);
 
   // Sync cart items with fresh products when allProducts updates
   useEffect(() => {
@@ -349,6 +363,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       loyaltyPoints, addPoints,
       lastOrderId, setLastOrderId,
       darkMode, toggleDarkMode, colors,
+      hidePrices,
       isProductsLoading,
     }}>
       {children}

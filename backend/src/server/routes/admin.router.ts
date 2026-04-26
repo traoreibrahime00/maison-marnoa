@@ -128,11 +128,12 @@ adminRouter.delete(
 adminRouter.get(
   '/general-settings',
   asyncHandler(async (_req, res) => {
-    const [waNumber, giftWrapFee] = await Promise.all([
+    const [waNumber, giftWrapFee, hidePrices] = await Promise.all([
       shippingService.getSetting('wa_number', '2250101466991'),
       shippingService.getSetting('gift_wrap_fee', '2500'),
+      shippingService.getSetting('hide_prices', 'false'),
     ]);
-    res.json({ waNumber, giftWrapFee: Number(giftWrapFee) });
+    res.json({ waNumber, giftWrapFee: Number(giftWrapFee), hidePrices: hidePrices === 'true' });
   })
 );
 
@@ -146,6 +147,9 @@ adminRouter.patch(
     }
     if (d.giftWrapFee !== undefined) {
       ops.push(shippingService.setSetting('gift_wrap_fee', String(Number(d.giftWrapFee))));
+    }
+    if (d.hidePrices !== undefined) {
+      ops.push(shippingService.setSetting('hide_prices', d.hidePrices ? 'true' : 'false'));
     }
     await Promise.all(ops);
     const [waNumber, giftWrapFee] = await Promise.all([
@@ -189,6 +193,19 @@ adminRouter.patch(
     };
     for (const k of showroomKeys) {
       if (d[k] !== undefined) ops.push(shippingService.setSetting(keyMap[k], String(d[k])));
+    }
+    await Promise.all(ops);
+    res.json({ ok: true });
+  })
+);
+
+adminRouter.patch(
+  '/general-settings',
+  asyncHandler(async (req, res) => {
+    const d = req.body as Record<string, unknown>;
+    const ops: Promise<unknown>[] = [];
+    if (d.hidePrices !== undefined) {
+      ops.push(shippingService.setSetting('hide_prices', d.hidePrices ? 'true' : 'false'));
     }
     await Promise.all(ops);
     res.json({ ok: true });

@@ -23,7 +23,21 @@ const HERO_DEFAULTS: HeroSettings = {
   cta1: 'Explorer la collection', cta2: 'Showroom Abidjan',
 };
 
+type ShowroomSettings = {
+  bannerUrl: string;
+  badge: string;
+  title: string;
+  subtitle: string;
+};
+const SHOWROOM_DEFAULTS: ShowroomSettings = {
+  bannerUrl: '',
+  badge: '✦ SHOWROOM ABIDJAN',
+  title: 'Essayez en boutique',
+  subtitle: 'Réservez votre rendez-vous',
+};
+
 const HERO_CACHE_KEY = 'mm_hero_settings';
+const SHOWROOM_CACHE_KEY = 'mm_showroom_settings';
 
 function getCachedHero(): { settings: HeroSettings; ready: boolean } {
   try {
@@ -31,6 +45,14 @@ function getCachedHero(): { settings: HeroSettings; ready: boolean } {
     if (raw) return { settings: { ...HERO_DEFAULTS, ...JSON.parse(raw) }, ready: true };
   } catch { /* ignore */ }
   return { settings: HERO_DEFAULTS, ready: false };
+}
+
+function getCachedShowroom(): { settings: ShowroomSettings; ready: boolean } {
+  try {
+    const raw = localStorage.getItem(SHOWROOM_CACHE_KEY);
+    if (raw) return { settings: { ...SHOWROOM_DEFAULTS, ...JSON.parse(raw) }, ready: true };
+  } catch { /* ignore */ }
+  return { settings: SHOWROOM_DEFAULTS, ready: false };
 }
 
 const GOLD = '#C9A227';
@@ -81,6 +103,9 @@ export default function Home() {
   const cached = getCachedHero();
   const [hero, setHero] = useState<HeroSettings>(cached.settings);
   const [heroReady, setHeroReady] = useState(cached.ready);
+  const cachedShowroom = getCachedShowroom();
+  const [showroom, setShowroom] = useState<ShowroomSettings>(cachedShowroom.settings);
+  const [showroomReady, setShowroomReady] = useState(cachedShowroom.ready);
   const heroRef = useRef<HTMLDivElement>(null);
   const { scrollYProgress } = useScroll({ target: heroRef, offset: ['start start', 'end start'] });
   const heroImgY = useTransform(scrollYProgress, [0, 1], ['0%', '18%']);
@@ -110,6 +135,19 @@ export default function Home() {
         }
       })
       .catch(() => { setHeroReady(true); }); // en cas d'erreur réseau, affiche quand même
+  }, []);
+
+  useEffect(() => {
+    fetch(apiUrl('/api/settings/showroom'))
+      .then(r => r.ok ? r.json() : null)
+      .then((d: ShowroomSettings | null) => {
+        if (d) {
+          setShowroom(d);
+          setShowroomReady(true);
+          try { localStorage.setItem(SHOWROOM_CACHE_KEY, JSON.stringify(d)); } catch { /* ignore */ }
+        }
+      })
+      .catch(() => { setShowroomReady(true); }); // en cas d'erreur réseau, affiche quand même
   }, []);
 
   const labelMap = Object.fromEntries(STATIC_CATEGORIES.map(c => [c.id, c.label]));
@@ -402,13 +440,13 @@ export default function Home() {
           style={{ height: 'clamp(100px,12vw,160px)' }}
           onClick={() => navigate('/appointment')}
         >
-          <img src={IMAGES.packaging} alt="Showroom" className="w-full h-full object-cover" />
+          <img src={showroom.bannerUrl || IMAGES.packaging} alt="Showroom" className="w-full h-full object-cover" />
           <div className="absolute inset-0" style={{ background: 'linear-gradient(135deg,rgba(0,0,0,0.6) 0%,rgba(0,0,0,0.2) 100%)' }} />
           <div className="absolute inset-0 flex items-center justify-between px-6 lg:px-12">
             <div>
-              <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: '9px', letterSpacing: '2px', textTransform: 'uppercase', marginBottom: '4px' }}>✦ SHOWROOM ABIDJAN</p>
-              <p style={{ color: '#fff', fontWeight: 700, fontSize: 'clamp(14px,1.8vw,22px)' }}>Essayez en boutique</p>
-              <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: 'clamp(11px,1vw,14px)' }}>Réservez votre rendez-vous</p>
+              <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: '9px', letterSpacing: '2px', textTransform: 'uppercase', marginBottom: '4px' }}>{showroom.badge}</p>
+              <p style={{ color: '#fff', fontWeight: 700, fontSize: 'clamp(14px,1.8vw,22px)' }}>{showroom.title}</p>
+              <p style={{ color: 'rgba(255,255,255,0.7)', fontSize: 'clamp(11px,1vw,14px)' }}>{showroom.subtitle}</p>
             </div>
             <motion.div whileHover={{ scale: 1.08 }} className="w-10 h-10 lg:w-12 lg:h-12 rounded-full flex items-center justify-center" style={{ background: 'linear-gradient(135deg,#C9A227,#E8C84A)', boxShadow: '0 4px 16px rgba(201,162,39,0.4)' }}>
               <ArrowRight size={18} color="#fff" />

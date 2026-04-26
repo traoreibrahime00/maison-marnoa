@@ -23,6 +23,19 @@ const HERO_DEFAULTS: HeroSettings = {
   cta1: 'Explorer la collection', cta2: 'Showroom Abidjan',
 };
 
+type ShowroomSettings = {
+  bannerUrl: string;
+  badge: string;
+  title: string;
+  subtitle: string;
+};
+const SHOWROOM_DEFAULTS: ShowroomSettings = {
+  bannerUrl: '',
+  badge: '✦ SHOWROOM ABIDJAN',
+  title: 'Essayez en boutique',
+  subtitle: 'Réservez votre rendez-vous',
+};
+
 function formatPhone(raw: string) {
   const digits = raw.replace(/\D/g, '');
   if (digits.length >= 11) {
@@ -311,12 +324,188 @@ function HeroMediaField({ value, mediaType, onSave }: {
   );
 }
 
+function ShowroomBannerField({ value, onSave }: {
+  value: string;
+  onSave: (url: string) => Promise<void>;
+}) {
+  const { CARD_BG, BG, BORDER, TEXT, MUTED, GOLD } = useColors();
+  const fileRef  = useRef<HTMLInputElement>(null);
+  const urlRef   = useRef<HTMLInputElement>(null);
+  const [uploading, setUploading]     = useState(false);
+  const [showUrlForm, setShowUrlForm] = useState(false);
+  const [urlDraft, setUrlDraft]       = useState('');
+  const [saving, setSaving]           = useState(false);
+  const [saved, setSaved]             = useState(false);
+  const cloudinaryReady = isCloudinaryConfigured();
+
+  /* File upload — auto-save, no validation click needed */
+  const handleFile = async (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (!file) return;
+    if (fileRef.current) fileRef.current.value = '';
+    if (!cloudinaryReady) { toast.error('Cloudinary non configuré'); return; }
+    if (!file.type.startsWith('image/')) { toast.error('Format non supporté'); return; }
+    setUploading(true);
+    try {
+      const url = await uploadToCloudinary(file, undefined, 'maison-marnoa/showroom');
+      await onSave(url);
+      toast.success('Bannière mise à jour');
+    } catch {
+      toast.error('Erreur upload');
+    } finally {
+      setUploading(false);
+    }
+  };
+
+  const openUrlForm = () => {
+    setUrlDraft(value);
+    setSaved(false);
+    setShowUrlForm(true);
+    setTimeout(() => urlRef.current?.focus(), 50);
+  };
+
+  /* URL auto-save — triggered by Enter or blur */
+  const commitUrl = async (url = urlDraft) => {
+    const trimmed = url.trim();
+    if (!trimmed || trimmed === value) return;
+    setSaving(true);
+    try {
+      await onSave(trimmed);
+      setSaved(true);
+      setTimeout(() => { setSaved(false); setShowUrlForm(false); }, 800);
+    } catch {
+      toast.error('Erreur de sauvegarde');
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  return (
+    <div className="rounded-xl overflow-hidden" style={{ border: `1px solid ${BORDER}` }}>
+
+      {/* ── Preview ── */}
+      {value ? (
+        <div className="relative" style={{ height: '200px', background: '#000' }}>
+          <img key={value} src={value} alt="Showroom banner preview" className="w-full h-full object-cover" />
+          <div className="absolute top-3 left-3 flex items-center gap-1.5 px-2.5 py-1.5 rounded-full"
+            style={{ background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(6px)' }}>
+            <ImageIcon size={11} color="#fff" />
+            <span style={{ color: '#fff', fontSize: '10px', fontWeight: 700, fontFamily: FONT, letterSpacing: '0.5px' }}>
+              Bannière active
+            </span>
+          </div>
+          {uploading && (
+            <div className="absolute inset-0 flex items-center justify-center"
+              style={{ background: 'rgba(0,0,0,0.5)', backdropFilter: 'blur(4px)' }}>
+              <div className="flex flex-col items-center gap-2">
+                <div style={{ width: 28, height: 28, border: `3px solid rgba(201,162,39,0.3)`, borderTop: `3px solid ${GOLD}`, borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+                <span style={{ color: '#fff', fontSize: '11px', fontFamily: FONT, fontWeight: 600 }}>Envoi en cours…</span>
+              </div>
+            </div>
+          )}
+        </div>
+      ) : (
+        <div
+          className="flex flex-col items-center justify-center gap-3 cursor-pointer"
+          style={{ height: '160px', background: BG, transition: 'background 0.2s' }}
+          onClick={() => fileRef.current?.click()}
+        >
+          <div className="flex flex-col items-center gap-2">
+            <Upload size={24} color={MUTED} strokeWidth={1.5} />
+            <p style={{ color: MUTED, fontSize: '12px', fontFamily: FONT }}>Cliquez pour uploader une bannière</p>
+          </div>
+        </div>
+      )}
+
+      {/* ── Actions ── */}
+      <div className="p-4" style={{ background: CARD_BG }}>
+        <p style={{ color: MUTED, fontSize: '10px', fontWeight: 700, fontFamily: FONT, letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: '12px' }}>
+          Bannière du showroom
+        </p>
+
+        <div className="flex gap-2 flex-wrap">
+          <input ref={fileRef} type="file" accept="image/*" onChange={handleFile} style={{ display: 'none' }} />
+          <button
+            onClick={() => fileRef.current?.click()} disabled={uploading}
+            style={{
+              display: 'flex', alignItems: 'center', gap: '6px',
+              padding: '8px 14px', borderRadius: '10px', cursor: uploading ? 'not-allowed' : 'pointer',
+              background: 'rgba(201,162,39,0.1)', border: `1px solid rgba(201,162,39,0.25)`,
+              color: GOLD, fontSize: '12px', fontWeight: 700, fontFamily: FONT,
+              opacity: uploading ? 0.6 : 1,
+            }}>
+            <Upload size={12} />
+            {uploading ? 'Upload…' : 'Uploader une image'}
+          </button>
+
+          <button
+            onClick={showUrlForm ? () => setShowUrlForm(false) : openUrlForm}
+            style={{
+              display: 'flex', alignItems: 'center', gap: '6px',
+              padding: '8px 14px', borderRadius: '10px', cursor: 'pointer',
+              background: showUrlForm ? 'rgba(201,162,39,0.08)' : BG,
+              border: `1px solid ${showUrlForm ? 'rgba(201,162,39,0.3)' : BORDER}`,
+              color: showUrlForm ? GOLD : MUTED, fontSize: '12px', fontWeight: 600, fontFamily: FONT,
+            }}>
+            <Link size={12} />
+            Saisir une URL
+          </button>
+        </div>
+
+        {/* ── URL form — auto-save on Enter or blur ── */}
+        {showUrlForm && (
+          <div className="mt-3 flex flex-col gap-2">
+            <div className="relative">
+              <input
+                ref={urlRef}
+                value={urlDraft}
+                onChange={e => setUrlDraft(e.target.value)}
+                placeholder="https://res.cloudinary.com/…"
+                onKeyDown={e => {
+                  if (e.key === 'Enter') commitUrl();
+                  if (e.key === 'Escape') setShowUrlForm(false);
+                }}
+                onBlur={() => commitUrl()}
+                style={{
+                  width: '100%', background: BG,
+                  border: `1px solid ${saved ? '#22c55e' : GOLD}`,
+                  borderRadius: '8px', padding: '9px 36px 9px 12px',
+                  color: TEXT, fontSize: '12px', fontFamily: FONT, outline: 'none',
+                  boxSizing: 'border-box', transition: 'border-color 0.2s',
+                }}
+              />
+              {/* Status icon inside input */}
+              <div className="absolute right-3 top-1/2 -translate-y-1/2" style={{ pointerEvents: 'none' }}>
+                {saving && (
+                  <div style={{ width: 12, height: 12, border: `2px solid rgba(201,162,39,0.3)`, borderTop: `2px solid ${GOLD}`, borderRadius: '50%', animation: 'spin 0.8s linear infinite' }} />
+                )}
+                {saved && !saving && <Check size={13} color="#22c55e" />}
+              </div>
+            </div>
+
+            <p style={{ color: MUTED, fontSize: '10px', fontFamily: FONT }}>
+              Appuyez sur <kbd style={{ background: BG, border: `1px solid ${BORDER}`, borderRadius: '4px', padding: '1px 5px', fontSize: '10px', fontFamily: 'monospace' }}>Entrée</kbd> ou cliquez ailleurs pour sauvegarder automatiquement.
+            </p>
+          </div>
+        )}
+
+        <p style={{ color: MUTED, fontSize: '10px', fontFamily: FONT, marginTop: '10px', lineHeight: 1.5 }}>
+          Formats acceptés : JPG, PNG, WebP — l'image sera automatiquement redimensionnée et optimisée.
+        </p>
+      </div>
+
+      <style>{`@keyframes spin { to { transform: rotate(360deg); } }`}</style>
+    </div>
+  );
+}
+
 export default function AdminSettings() {
   const navigate = useNavigate();
   const { BG, CARD_BG, BORDER, TEXT, MUTED, GOLD } = useColors();
   const [settings, setSettings] = useState<GeneralSettings | null>(null);
   const [shipping, setShipping] = useState<ShippingInfo | null>(null);
   const [hero, setHero]         = useState<HeroSettings>(HERO_DEFAULTS);
+  const [showroom, setShowroom] = useState<ShowroomSettings>(SHOWROOM_DEFAULTS);
   const [loading, setLoading]   = useState(true);
 
   useEffect(() => {
@@ -324,10 +513,12 @@ export default function AdminSettings() {
       fetch(apiUrl('/api/admin/general-settings'), { credentials: 'include' }).then(r => r.json()),
       fetch(apiUrl('/api/shipping/zones')).then(r => r.json()),
       fetch(apiUrl('/api/settings/hero')).then(r => r.json()),
-    ]).then(([gen, ship, h]: [GeneralSettings, { freeThreshold: number; freeZone: string }, HeroSettings]) => {
+      fetch(apiUrl('/api/settings/showroom')).then(r => r.json()),
+    ]).then(([gen, ship, h, s]: [GeneralSettings, { freeThreshold: number; freeZone: string }, HeroSettings, ShowroomSettings]) => {
       setSettings(gen);
       setShipping({ freeThreshold: ship.freeThreshold, freeZone: ship.freeZone });
       setHero(h);
+      setShowroom(s);
     }).catch(() => {}).finally(() => setLoading(false));
   }, []);
 
@@ -349,6 +540,16 @@ export default function AdminSettings() {
     // Mise à jour immédiate — le preview s'actualise sans attendre le backend
     setHero(prev => ({ ...prev, ...patch }));
     const res = await fetch(apiUrl('/api/admin/hero-settings'), {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      credentials: 'include', body: JSON.stringify(patch),
+    });
+    if (!res.ok) { toast.error('Erreur de sauvegarde'); }
+  };
+
+  const saveShowroom = async (patch: Partial<ShowroomSettings>) => {
+    // Mise à jour immédiate — le preview s'actualise sans attendre le backend
+    setShowroom(prev => ({ ...prev, ...patch }));
+    const res = await fetch(apiUrl('/api/admin/showroom-settings'), {
       method: 'PATCH', headers: { 'Content-Type': 'application/json' },
       credentials: 'include', body: JSON.stringify(patch),
     });
@@ -452,6 +653,45 @@ export default function AdminSettings() {
               onSave={v => saveHero({ cta2: v })}
             />
           </div>
+        </div>
+      </div>
+
+      {/* ── Showroom section ── */}
+      <div className="rounded-2xl overflow-hidden" style={{ border: `1px solid ${BORDER}` }}>
+        <div className="px-5 pt-5 pb-4" style={{ background: CARD_BG }}>
+          <p style={{ color: GOLD, fontSize: '14px', fontWeight: 700, fontFamily: FONT, marginBottom: '2px' }}>
+            Showroom — Page d'accueil
+          </p>
+          <p style={{ color: MUTED, fontSize: '12px', fontFamily: FONT }}>
+            Personnalisez la bannière du showroom et ses textes.
+          </p>
+        </div>
+
+        {/* Showroom banner field — full width, flush */}
+        <ShowroomBannerField
+          value={showroom.bannerUrl}
+          onSave={(url) => saveShowroom({ bannerUrl: url })}
+        />
+
+        <div className="p-5 flex flex-col gap-3" style={{ background: CARD_BG }}>
+          <EditableField
+            label="Badge"
+            icon={<span style={{ fontSize: '10px', color: GOLD }}>✦</span>}
+            value={showroom.badge}
+            onSave={v => saveShowroom({ badge: v })}
+          />
+          <EditableField
+            label="Titre principal"
+            icon={<span style={{ fontSize: '10px', color: TEXT, fontWeight: 800 }}>T</span>}
+            value={showroom.title}
+            onSave={v => saveShowroom({ title: v })}
+          />
+          <EditableField
+            label="Sous-titre"
+            icon={<Pencil size={13} color={MUTED} />}
+            value={showroom.subtitle}
+            onSave={v => saveShowroom({ subtitle: v })}
+          />
         </div>
       </div>
 

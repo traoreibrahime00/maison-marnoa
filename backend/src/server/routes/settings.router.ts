@@ -15,6 +15,13 @@ const HERO_DEFAULTS = {
   cta2:      'Showroom Abidjan',
 };
 
+const SHOWROOM_DEFAULTS = {
+  bannerUrl: '',
+  badge:     '✦ SHOWROOM ABIDJAN',
+  title:     'Essayez en boutique',
+  subtitle:  'Réservez votre rendez-vous',
+};
+
 settingsRouter.get(
   '/hero',
   asyncHandler(async (_req, res) => {
@@ -29,5 +36,18 @@ settingsRouter.get(
       shippingService.getSetting('hero_cta2',       HERO_DEFAULTS.cta2),
     ]);
     res.json({ mediaUrl, mediaType, badge, title1, title2, subtitle, cta1, cta2 });
+  })
+);
+
+settingsRouter.get(
+  '/showroom',
+  asyncHandler(async (_req, res) => {
+    const [bannerUrl, badge, title, subtitle] = await Promise.all([
+      shippingService.getSetting('showroom_banner_url', SHOWROOM_DEFAULTS.bannerUrl),
+      shippingService.getSetting('showroom_badge',       SHOWROOM_DEFAULTS.badge),
+      shippingService.getSetting('showroom_title',       SHOWROOM_DEFAULTS.title),
+      shippingService.getSetting('showroom_subtitle',    SHOWROOM_DEFAULTS.subtitle),
+    ]);
+    res.json({ bannerUrl, badge, title, subtitle });
   })
 );

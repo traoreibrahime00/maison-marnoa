@@ -176,6 +176,26 @@ adminRouter.patch(
 );
 
 adminRouter.patch(
+  '/showroom-settings',
+  asyncHandler(async (req, res) => {
+    const d = req.body as Record<string, unknown>;
+    const ops: Promise<unknown>[] = [];
+    const showroomKeys = ['bannerUrl', 'badge', 'title', 'subtitle'] as const;
+    const keyMap: Record<string, string> = {
+      bannerUrl: 'showroom_banner_url',
+      badge: 'showroom_badge',
+      title: 'showroom_title',
+      subtitle: 'showroom_subtitle',
+    };
+    for (const k of showroomKeys) {
+      if (d[k] !== undefined) ops.push(shippingService.setSetting(keyMap[k], String(d[k])));
+    }
+    await Promise.all(ops);
+    res.json({ ok: true });
+  })
+);
+
+adminRouter.patch(
   '/shipping/settings',
   asyncHandler(async (req, res) => {
     const d = req.body as Record<string, unknown>;

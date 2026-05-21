@@ -3,6 +3,10 @@ dist
 .vite
 
 # Keep environment variables out of version control
+.env
+.env.*
+!.env.example
+!.env.*.example
 
 # Claude Code local files
 CLAUDE.md

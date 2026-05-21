@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import { motion, AnimatePresence } from 'motion/react';
-import logoImg from '../../assets/95142fd9e55c098717be21006672d1b38112448f.png';
+import logoImg from '../../assets/logo-dark.png';
 
 interface SplashScreenProps {
   visible: boolean;
@@ -173,7 +173,6 @@ export function SplashScreen({ visible, onDone }: SplashScreenProps) {
                 style={{
                   height: 48,
                   width: 'auto',
-                  filter: 'brightness(0) invert(1)',
                   userSelect: 'none',
                   display: 'block',
                 }}

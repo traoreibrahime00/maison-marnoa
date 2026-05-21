@@ -3,8 +3,6 @@ dist
 .vite
 
 # Keep environment variables out of version control
-.env
-.env.*
 
 # Claude Code local files
 CLAUDE.md
@@ -13,3 +11,4 @@ CLAUDE.md
 # Local Prisma artifacts
 backend/prisma/dev.db
 backend/prisma/dev.db-journal
+config.bat

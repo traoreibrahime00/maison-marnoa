@@ -1,0 +1,16 @@
+# Dépendances — reconstruites par `npm ci` dans l'image
+node_modules
+
+# Secrets — ne doivent JAMAIS entrer dans une image
+.env
+.env.*
+
+# Build local — regénéré dans l'image
+dist
+.vite
+
+# Historique et outillage
+.git
+.github
+.claude
+CLAUDE.md

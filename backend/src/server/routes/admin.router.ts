@@ -128,12 +128,18 @@ adminRouter.delete(
 adminRouter.get(
   '/general-settings',
   asyncHandler(async (_req, res) => {
-    const [waNumber, giftWrapFee, hidePrices] = await Promise.all([
+    const [waNumber, giftWrapFee, hidePrices, hideStock] = await Promise.all([
       shippingService.getSetting('wa_number', '2250101466991'),
       shippingService.getSetting('gift_wrap_fee', '2500'),
       shippingService.getSetting('hide_prices', 'false'),
+      shippingService.getSetting('hide_stock', 'false'),
     ]);
-    res.json({ waNumber, giftWrapFee: Number(giftWrapFee), hidePrices: hidePrices === 'true' });
+    res.json({
+      waNumber,
+      giftWrapFee: Number(giftWrapFee),
+      hidePrices: hidePrices === 'true',
+      hideStock: hideStock === 'true',
+    });
   })
 );
 
@@ -151,12 +157,23 @@ adminRouter.patch(
     if (d.hidePrices !== undefined) {
       ops.push(shippingService.setSetting('hide_prices', d.hidePrices ? 'true' : 'false'));
     }
+    if (d.hideStock !== undefined) {
+      ops.push(shippingService.setSetting('hide_stock', d.hideStock ? 'true' : 'false'));
+    }
     await Promise.all(ops);
-    const [waNumber, giftWrapFee] = await Promise.all([
+    // Renvoie l'objet complet : le back-office remplace son état avec cette réponse
+    const [waNumber, giftWrapFee, hidePrices, hideStock] = await Promise.all([
       shippingService.getSetting('wa_number', '2250101466991'),
       shippingService.getSetting('gift_wrap_fee', '2500'),
+      shippingService.getSetting('hide_prices', 'false'),
+      shippingService.getSetting('hide_stock', 'false'),
     ]);
-    res.json({ waNumber, giftWrapFee: Number(giftWrapFee) });
+    res.json({
+      waNumber,
+      giftWrapFee: Number(giftWrapFee),
+      hidePrices: hidePrices === 'true',
+      hideStock: hideStock === 'true',
+    });
   })
 );
 
@@ -192,6 +209,33 @@ adminRouter.patch(
       subtitle: 'showroom_subtitle',
     };
     for (const k of showroomKeys) {
+      if (d[k] !== undefined) ops.push(shippingService.setSetting(keyMap[k], String(d[k])));
+    }
+    await Promise.all(ops);
+    res.json({ ok: true });
+  })
+);
+
+adminRouter.patch(
+  '/promise-settings',
+  asyncHandler(async (req, res) => {
+    const d = req.body as Record<string, unknown>;
+    const ops: Promise<unknown>[] = [];
+    const promiseKeys = [
+      'imageUrl', 'badge', 'title1', 'title2', 'description',
+      'stat1Label', 'stat1Sub', 'stat2Label', 'stat2Sub', 'stat3Label', 'stat3Sub',
+    ] as const;
+    const keyMap: Record<string, string> = {
+      imageUrl: 'promise_image_url',
+      badge: 'promise_badge',
+      title1: 'promise_title1',
+      title2: 'promise_title2',
+      description: 'promise_description',
+      stat1Label: 'promise_stat1_label', stat1Sub: 'promise_stat1_sub',
+      stat2Label: 'promise_stat2_label', stat2Sub: 'promise_stat2_sub',
+      stat3Label: 'promise_stat3_label', stat3Sub: 'promise_stat3_sub',
+    };
+    for (const k of promiseKeys) {
       if (d[k] !== undefined) ops.push(shippingService.setSetting(keyMap[k], String(d[k])));
     }
     await Promise.all(ops);

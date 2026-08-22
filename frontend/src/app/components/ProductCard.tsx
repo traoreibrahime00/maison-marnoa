@@ -17,7 +17,7 @@ export function ProductCard({ product, index = 0 }: ProductCardProps) {
   const navigate = useNavigate();
   const { toggleWishlist, isWishlisted } = useApp();
   const { CARD_BG, BORDER, TEXT, MUTED } = useColors();
-  const { hidePrices } = useApp();
+  const { hidePrices, hideStock } = useApp();
   const wishlisted = isWishlisted(product.id);
   const [hovered, setHovered] = useState(false);
 
@@ -94,7 +94,7 @@ export function ProductCard({ product, index = 0 }: ProductCardProps) {
         ) : null}
 
         {/* Stock alert — bottom left */}
-        {product.stock != null && product.stock <= 4 && (
+        {!hideStock && product.stock != null && product.stock <= 4 && (
           <div className="absolute bottom-2.5 left-2.5 px-2 py-1 rounded-full"
             style={{ background: 'rgba(239,68,68,0.9)', color: '#fff', fontWeight: 700, fontSize: '9px', backdropFilter: 'blur(8px)' }}>
             Plus que {product.stock} !

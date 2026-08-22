@@ -27,7 +27,7 @@ function StarRating({ rating, size = 12 }: { rating: number; size?: number }) {
 export default function ProductDetail() {
   const navigate = useNavigate();
   const { id } = useParams<{ id: string }>();
-  const { addToCart, removeFromCart, updateQuantity, toggleWishlist, isWishlisted, cartItems, hidePrices } = useApp();
+  const { addToCart, removeFromCart, updateQuantity, toggleWishlist, isWishlisted, cartItems, hidePrices, hideStock } = useApp();
   const { BG, CARD_BG, BORDER, TEXT, MUTED } = useColors();
   const products = useProducts();
 
@@ -234,7 +234,7 @@ export default function ProductDetail() {
             </div>
 
             {/* Stock badge */}
-            {product.stock !== undefined && product.stock <= 5 && (
+            {!hideStock && product.stock !== undefined && product.stock <= 5 && (
               <div className="absolute bottom-4 left-4">
                 <span className="px-3 py-1.5 rounded-full text-white text-xs font-bold"
                   style={{ background: 'rgba(239,68,68,0.85)', backdropFilter: 'blur(6px)' }}>
@@ -246,7 +246,7 @@ export default function ProductDetail() {
             {/* Dots (mobile) */}
             {allImages.length > 1 && (
               <div className="absolute bottom-4 left-0 right-0 flex justify-center gap-1.5 lg:hidden"
-                style={{ bottom: product.stock !== undefined && product.stock <= 5 ? '44px' : '14px' }}>
+                style={{ bottom: !hideStock && product.stock !== undefined && product.stock <= 5 ? '44px' : '14px' }}>
                 {allImages.map((_, i) => (
                   <motion.button
                     key={i}
@@ -475,7 +475,7 @@ export default function ProductDetail() {
           {/* Quantity + CTA */}
           <div ref={ctaRef} className="flex flex-col gap-3 mb-5">
             {/* Stock urgency */}
-            {product.stock !== undefined && product.stock > 0 && product.stock < 10 && (
+            {!hideStock && product.stock !== undefined && product.stock > 0 && product.stock < 10 && (
               <motion.div
                 initial={{ opacity: 0, y: -4 }} animate={{ opacity: 1, y: 0 }}
                 className="flex items-center gap-2 px-3 py-2 rounded-xl"

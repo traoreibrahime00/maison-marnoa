@@ -7,7 +7,7 @@ import { toast } from 'sonner';
 
 export default function Wishlist() {
   const navigate = useNavigate();
-  const { wishlist, toggleWishlist, addToCart, togglePriceAlert, hasPriceAlert, hidePrices } = useApp();
+  const { wishlist, toggleWishlist, addToCart, togglePriceAlert, hasPriceAlert, hidePrices, hideStock } = useApp();
   const { BG, CARD_BG, BORDER, TEXT, MUTED, GOLD } = useColors();
   const products = useProducts();
 
@@ -86,7 +86,7 @@ export default function Wishlist() {
                       {/* Image */}
                       <div className="w-20 h-20 rounded-xl overflow-hidden flex-shrink-0 cursor-pointer relative" onClick={() => navigate(`/product/${product.id}`)}>
                         <motion.img src={product.image} alt={product.name} className="w-full h-full object-cover" whileHover={{ scale: 1.06 }} transition={{ duration: 0.3 }} />
-                        {product.stock && product.stock <= 3 && (
+                        {!hideStock && product.stock && product.stock <= 3 && (
                           <div className="absolute bottom-0 left-0 right-0 py-1 text-center" style={{ background: 'rgba(239,68,68,0.85)', color: '#fff', fontSize: '8px', fontWeight: 700 }}>
                             Plus que {product.stock} !
                           </div>

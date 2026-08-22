@@ -36,8 +36,30 @@ const SHOWROOM_DEFAULTS: ShowroomSettings = {
   subtitle: 'Réservez votre rendez-vous',
 };
 
+type PromiseSettings = {
+  imageUrl: string;
+  badge: string;
+  title1: string;
+  title2: string;
+  description: string;
+  stat1Label: string; stat1Sub: string;
+  stat2Label: string; stat2Sub: string;
+  stat3Label: string; stat3Sub: string;
+};
+const PROMISE_DEFAULTS: PromiseSettings = {
+  imageUrl: '',
+  badge: 'Notre Promesse',
+  title1: 'La Haute Joaillerie',
+  title2: 'à votre portée',
+  description: 'Maison Marnoa sélectionne rigoureusement les plus belles pièces auprès des meilleurs créateurs et maisons joaillières à travers le monde, pour vous les proposer à Abidjan.',
+  stat1Label: 'Or 18K',  stat1Sub: 'Certifié',
+  stat2Label: '100%',    stat2Sub: 'Sélectionnés',
+  stat3Label: 'Monde',   stat3Sub: 'Origines',
+};
+
 const HERO_CACHE_KEY = 'mm_hero_settings';
 const SHOWROOM_CACHE_KEY = 'mm_showroom_settings';
+const PROMISE_CACHE_KEY = 'mm_promise_settings';
 
 function getCachedHero(): { settings: HeroSettings; ready: boolean } {
   try {
@@ -53,6 +75,14 @@ function getCachedShowroom(): { settings: ShowroomSettings; ready: boolean } {
     if (raw) return { settings: { ...SHOWROOM_DEFAULTS, ...JSON.parse(raw) }, ready: true };
   } catch { /* ignore */ }
   return { settings: SHOWROOM_DEFAULTS, ready: false };
+}
+
+function getCachedPromise(): { settings: PromiseSettings; ready: boolean } {
+  try {
+    const raw = localStorage.getItem(PROMISE_CACHE_KEY);
+    if (raw) return { settings: { ...PROMISE_DEFAULTS, ...JSON.parse(raw) }, ready: true };
+  } catch { /* ignore */ }
+  return { settings: PROMISE_DEFAULTS, ready: false };
 }
 
 const GOLD = '#C9A227';
@@ -106,6 +136,8 @@ export default function Home() {
   const cachedShowroom = getCachedShowroom();
   const [showroom, setShowroom] = useState<ShowroomSettings>(cachedShowroom.settings);
   const [showroomReady, setShowroomReady] = useState(cachedShowroom.ready);
+  const cachedPromise = getCachedPromise();
+  const [promise, setPromise] = useState<PromiseSettings>(cachedPromise.settings);
   const heroRef = useRef<HTMLDivElement>(null);
   const { scrollYProgress } = useScroll({ target: heroRef, offset: ['start start', 'end start'] });
   const heroImgY = useTransform(scrollYProgress, [0, 1], ['0%', '18%']);
@@ -148,6 +180,18 @@ export default function Home() {
         }
       })
       .catch(() => { setShowroomReady(true); }); // en cas d'erreur réseau, affiche quand même
+  }, []);
+
+  useEffect(() => {
+    fetch(apiUrl('/api/settings/promise'))
+      .then(r => r.ok ? r.json() : null)
+      .then((d: PromiseSettings | null) => {
+        if (d) {
+          setPromise(d);
+          try { localStorage.setItem(PROMISE_CACHE_KEY, JSON.stringify(d)); } catch { /* ignore */ }
+        }
+      })
+      .catch(() => { /* garde les valeurs par défaut */ });
   }, []);
 
   const labelMap = Object.fromEntries(STATIC_CATEGORIES.map(c => [c.id, c.label]));
@@ -406,16 +450,20 @@ export default function Home() {
             <div className="p-6 lg:p-10 flex flex-col justify-center" style={{ background: CARD_BG }}>
               <div className="flex items-center gap-2 mb-4">
                 <Diamond size={16} color={GOLD} />
-                <span style={{ color: GOLD, fontWeight: 700, fontSize: '10px', letterSpacing: '2px', textTransform: 'uppercase' }}>Notre Promesse</span>
+                <span style={{ color: GOLD, fontWeight: 700, fontSize: '10px', letterSpacing: '2px', textTransform: 'uppercase' }}>{promise.badge}</span>
               </div>
               <h2 style={{ color: TEXT, fontWeight: 800, fontSize: 'clamp(20px,2.5vw,32px)', lineHeight: 1.25, marginBottom: '12px' }}>
-                La Haute Joaillerie<br /><GoldText>à votre portée</GoldText>
+                {promise.title1}<br /><GoldText>{promise.title2}</GoldText>
               </h2>
               <p style={{ color: MUTED, fontSize: 'clamp(12px,1.1vw,14px)', lineHeight: 1.7, marginBottom: '24px', maxWidth: '400px' }}>
-                Maison Marnoa sélectionne rigoureusement les plus belles pièces auprès des meilleurs créateurs et maisons joaillières à travers le monde, pour vous les proposer à Abidjan.
+                {promise.description}
               </p>
               <div className="grid grid-cols-3 gap-3">
-                {[{ label: 'Or 18K', sub: 'Certifié' }, { label: '100%', sub: 'Sélectionnés' }, { label: 'Monde', sub: 'Origines' }].map(item => (
+                {[
+                  { label: promise.stat1Label, sub: promise.stat1Sub },
+                  { label: promise.stat2Label, sub: promise.stat2Sub },
+                  { label: promise.stat3Label, sub: promise.stat3Sub },
+                ].filter(item => item.label || item.sub).map(item => (
                   <div key={item.label} className="rounded-xl p-3 text-center" style={{ background: 'linear-gradient(135deg,#FDF8E8,#FFF3C0)', border: `1px solid rgba(201,162,39,0.2)` }}>
                     <p style={{ color: GOLD, fontWeight: 800, fontSize: 'clamp(15px,1.5vw,20px)' }}>{item.label}</p>
                     <p style={{ color: MUTED, fontWeight: 500, fontSize: '9px', letterSpacing: '1px', textTransform: 'uppercase' }}>{item.sub}</p>
@@ -425,7 +473,7 @@ export default function Home() {
             </div>
             {/* Right: image */}
             <div className="hidden lg:block relative" style={{ minHeight: '300px' }}>
-              <img src={IMAGES.hero} alt="Atelier Marnoa" className="w-full h-full object-cover" />
+              <img src={promise.imageUrl || IMAGES.hero} alt="Atelier Marnoa" className="w-full h-full object-cover" />
               <div className="absolute inset-0" style={{ background: 'linear-gradient(135deg,rgba(0,0,0,0.1),transparent)' }} />
             </div>
           </div>

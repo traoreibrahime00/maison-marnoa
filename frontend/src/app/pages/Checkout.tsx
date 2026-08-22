@@ -45,7 +45,7 @@ export default function Checkout() {
   const navigate = useNavigate();
   const {
     cartItems, cartTotal, clearCart, setLastOrderId,
-    isGiftWrap, giftMessage, currentUser, isLoggedIn, login, updateProfile,
+    isGiftWrap, giftMessage, currentUser, isLoggedIn, login, updateProfile, hideStock,
   } = useApp();
   const { BG, CARD_BG, BORDER, TEXT, MUTED, GOLD } = useColors();
 
@@ -238,8 +238,8 @@ export default function Checkout() {
         if (res.status === 409) {
           const available = data.details?.available ?? 0;
           toast.error('Stock insuffisant', {
-            description: available === 0
-              ? 'Un article n\'est plus disponible.'
+            description: available === 0 || hideStock
+              ? 'Un article n\'est plus disponible en quantité suffisante.'
               : `Il reste seulement ${available} exemplaire(s).`,
           });
           return;

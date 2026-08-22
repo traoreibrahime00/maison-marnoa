@@ -8,7 +8,7 @@ import { uploadToCloudinary, isCloudinaryConfigured } from '../../lib/cloudinary
 
 const FONT = 'Manrope, sans-serif';
 
-type GeneralSettings = { waNumber: string; giftWrapFee: number; hidePrices: boolean };
+type GeneralSettings = { waNumber: string; giftWrapFee: number; hidePrices: boolean; hideStock: boolean };
 type ShippingInfo    = { freeThreshold: number; freeZone: string };
 type HeroSettings = {
   mediaUrl: string; mediaType: string;
@@ -34,6 +34,27 @@ const SHOWROOM_DEFAULTS: ShowroomSettings = {
   badge: '✦ SHOWROOM ABIDJAN',
   title: 'Essayez en boutique',
   subtitle: 'Réservez votre rendez-vous',
+};
+
+type PromiseSettings = {
+  imageUrl: string;
+  badge: string;
+  title1: string;
+  title2: string;
+  description: string;
+  stat1Label: string; stat1Sub: string;
+  stat2Label: string; stat2Sub: string;
+  stat3Label: string; stat3Sub: string;
+};
+const PROMISE_DEFAULTS: PromiseSettings = {
+  imageUrl: '',
+  badge: 'Notre Promesse',
+  title1: 'La Haute Joaillerie',
+  title2: 'à votre portée',
+  description: 'Maison Marnoa sélectionne rigoureusement les plus belles pièces auprès des meilleurs créateurs et maisons joaillières à travers le monde, pour vous les proposer à Abidjan.',
+  stat1Label: 'Or 18K',  stat1Sub: 'Certifié',
+  stat2Label: '100%',    stat2Sub: 'Sélectionnés',
+  stat3Label: 'Monde',   stat3Sub: 'Origines',
 };
 
 function formatPhone(raw: string) {
@@ -324,9 +345,20 @@ function HeroMediaField({ value, mediaType, onSave }: {
   );
 }
 
-function ShowroomBannerField({ value, onSave }: {
+/* ── Uploader d'image simple — utilisé par le showroom et la section « Notre Promesse » ── */
+function BannerImageField({
+  value, onSave,
+  title      = 'Bannière du showroom',
+  folder     = 'maison-marnoa/showroom',
+  badgeLabel = 'Bannière active',
+  emptyLabel = 'Cliquez pour uploader une bannière',
+}: {
   value: string;
   onSave: (url: string) => Promise<void>;
+  title?: string;
+  folder?: string;
+  badgeLabel?: string;
+  emptyLabel?: string;
 }) {
   const { CARD_BG, BG, BORDER, TEXT, MUTED, GOLD } = useColors();
   const fileRef  = useRef<HTMLInputElement>(null);
@@ -347,9 +379,9 @@ function ShowroomBannerField({ value, onSave }: {
     if (!file.type.startsWith('image/')) { toast.error('Format non supporté'); return; }
     setUploading(true);
     try {
-      const url = await uploadToCloudinary(file, undefined, 'maison-marnoa/showroom');
+      const url = await uploadToCloudinary(file, undefined, folder);
       await onSave(url);
-      toast.success('Bannière mise à jour');
+      toast.success('Image mise à jour');
     } catch {
       toast.error('Erreur upload');
     } finally {
@@ -386,12 +418,12 @@ function ShowroomBannerField({ value, onSave }: {
       {/* ── Preview ── */}
       {value ? (
         <div className="relative" style={{ height: '200px', background: '#000' }}>
-          <img key={value} src={value} alt="Showroom banner preview" className="w-full h-full object-cover" />
+          <img key={value} src={value} alt={title} className="w-full h-full object-cover" />
           <div className="absolute top-3 left-3 flex items-center gap-1.5 px-2.5 py-1.5 rounded-full"
             style={{ background: 'rgba(0,0,0,0.55)', backdropFilter: 'blur(6px)' }}>
             <ImageIcon size={11} color="#fff" />
             <span style={{ color: '#fff', fontSize: '10px', fontWeight: 700, fontFamily: FONT, letterSpacing: '0.5px' }}>
-              Bannière active
+              {badgeLabel}
             </span>
           </div>
           {uploading && (
@@ -412,7 +444,7 @@ function ShowroomBannerField({ value, onSave }: {
         >
           <div className="flex flex-col items-center gap-2">
             <Upload size={24} color={MUTED} strokeWidth={1.5} />
-            <p style={{ color: MUTED, fontSize: '12px', fontFamily: FONT }}>Cliquez pour uploader une bannière</p>
+            <p style={{ color: MUTED, fontSize: '12px', fontFamily: FONT }}>{emptyLabel}</p>
           </div>
         </div>
       )}
@@ -420,7 +452,7 @@ function ShowroomBannerField({ value, onSave }: {
       {/* ── Actions ── */}
       <div className="p-4" style={{ background: CARD_BG }}>
         <p style={{ color: MUTED, fontSize: '10px', fontWeight: 700, fontFamily: FONT, letterSpacing: '0.5px', textTransform: 'uppercase', marginBottom: '12px' }}>
-          Bannière du showroom
+          {title}
         </p>
 
         <div className="flex gap-2 flex-wrap">
@@ -506,6 +538,7 @@ export default function AdminSettings() {
   const [shipping, setShipping] = useState<ShippingInfo | null>(null);
   const [hero, setHero]         = useState<HeroSettings>(HERO_DEFAULTS);
   const [showroom, setShowroom] = useState<ShowroomSettings>(SHOWROOM_DEFAULTS);
+  const [promise, setPromise]   = useState<PromiseSettings>(PROMISE_DEFAULTS);
   const [loading, setLoading]   = useState(true);
 
   useEffect(() => {
@@ -514,15 +547,17 @@ export default function AdminSettings() {
       fetch(apiUrl('/api/shipping/zones')).then(r => r.json()),
       fetch(apiUrl('/api/settings/hero')).then(r => r.json()),
       fetch(apiUrl('/api/settings/showroom')).then(r => r.json()),
-    ]).then(([gen, ship, h, s]: [GeneralSettings, { freeThreshold: number; freeZone: string }, HeroSettings, ShowroomSettings]) => {
+      fetch(apiUrl('/api/settings/promise')).then(r => r.json()),
+    ]).then(([gen, ship, h, s, p]: [GeneralSettings, { freeThreshold: number; freeZone: string }, HeroSettings, ShowroomSettings, PromiseSettings]) => {
       setSettings(gen);
       setShipping({ freeThreshold: ship.freeThreshold, freeZone: ship.freeZone });
       setHero(h);
       setShowroom(s);
+      setPromise(p);
     }).catch(() => {}).finally(() => setLoading(false));
   }, []);
 
-  const save = async (key: Exclude<keyof GeneralSettings, 'hidePrices'>, rawVal: string) => {
+  const save = async (key: Exclude<keyof GeneralSettings, 'hidePrices' | 'hideStock'>, rawVal: string) => {
     const body = key === 'giftWrapFee'
       ? { giftWrapFee: Number(rawVal) }
       : { waNumber: rawVal.replace(/\D/g, '') };
@@ -550,6 +585,16 @@ export default function AdminSettings() {
     // Mise à jour immédiate — le preview s'actualise sans attendre le backend
     setShowroom(prev => ({ ...prev, ...patch }));
     const res = await fetch(apiUrl('/api/admin/showroom-settings'), {
+      method: 'PATCH', headers: { 'Content-Type': 'application/json' },
+      credentials: 'include', body: JSON.stringify(patch),
+    });
+    if (!res.ok) { toast.error('Erreur de sauvegarde'); }
+  };
+
+  const savePromise = async (patch: Partial<PromiseSettings>) => {
+    // Mise à jour immédiate — le preview s'actualise sans attendre le backend
+    setPromise(prev => ({ ...prev, ...patch }));
+    const res = await fetch(apiUrl('/api/admin/promise-settings'), {
       method: 'PATCH', headers: { 'Content-Type': 'application/json' },
       credentials: 'include', body: JSON.stringify(patch),
     });
@@ -668,7 +713,7 @@ export default function AdminSettings() {
         </div>
 
         {/* Showroom banner field — full width, flush */}
-        <ShowroomBannerField
+        <BannerImageField
           value={showroom.bannerUrl}
           onSave={(url) => saveShowroom({ bannerUrl: url })}
         />
@@ -692,6 +737,127 @@ export default function AdminSettings() {
             value={showroom.subtitle}
             onSave={v => saveShowroom({ subtitle: v })}
           />
+        </div>
+      </div>
+
+      {/* ── Notre Promesse section ── */}
+      <div className="rounded-2xl overflow-hidden" style={{ border: `1px solid ${BORDER}` }}>
+        <div className="px-5 pt-5 pb-4" style={{ background: CARD_BG }}>
+          <p style={{ color: GOLD, fontSize: '14px', fontWeight: 700, fontFamily: FONT, marginBottom: '2px' }}>
+            Notre Promesse — Page d'accueil
+          </p>
+          <p style={{ color: MUTED, fontSize: '12px', fontFamily: FONT }}>
+            Personnalisez l'image, les textes et les trois chiffres clés de la section.
+          </p>
+        </div>
+
+        <BannerImageField
+          value={promise.imageUrl}
+          onSave={(url) => savePromise({ imageUrl: url })}
+          title="Image de la section"
+          folder="maison-marnoa/promise"
+          badgeLabel="Image active"
+          emptyLabel="Cliquez pour uploader une image"
+        />
+
+        <div className="p-5 flex flex-col gap-3" style={{ background: CARD_BG }}>
+          {/* Aperçu du rendu */}
+          <div className="rounded-xl p-4 mb-1" style={{ background: BG, border: `1px solid ${BORDER}` }}>
+            <p style={{ color: GOLD, fontSize: '10px', fontWeight: 700, fontFamily: FONT, letterSpacing: '2px', textTransform: 'uppercase', marginBottom: '8px' }}>
+              ◇ {promise.badge || 'Badge'}
+            </p>
+            <p style={{ color: TEXT, fontSize: '18px', fontWeight: 800, fontFamily: FONT, lineHeight: 1.25 }}>
+              {promise.title1 || 'Titre 1'}
+            </p>
+            <p style={{ color: GOLD, fontSize: '18px', fontWeight: 800, fontFamily: FONT, lineHeight: 1.25, marginBottom: '8px' }}>
+              {promise.title2 || 'Titre 2'}
+            </p>
+            <p style={{ color: MUTED, fontSize: '12px', fontFamily: FONT, lineHeight: 1.6, marginBottom: '12px' }}>
+              {promise.description}
+            </p>
+            <div className="grid grid-cols-3 gap-2">
+              {[
+                { label: promise.stat1Label, sub: promise.stat1Sub },
+                { label: promise.stat2Label, sub: promise.stat2Sub },
+                { label: promise.stat3Label, sub: promise.stat3Sub },
+              ].map((s, i) => (
+                <div key={i} className="rounded-lg p-2 text-center" style={{ background: 'linear-gradient(135deg,#FDF8E8,#FFF3C0)', border: '1px solid rgba(201,162,39,0.2)' }}>
+                  <p style={{ color: GOLD, fontWeight: 800, fontSize: '14px', fontFamily: FONT }}>{s.label || '—'}</p>
+                  <p style={{ color: '#8a7a4e', fontWeight: 500, fontSize: '9px', fontFamily: FONT, letterSpacing: '1px', textTransform: 'uppercase' }}>{s.sub}</p>
+                </div>
+              ))}
+            </div>
+          </div>
+
+          <EditableField
+            label="Badge"
+            icon={<span style={{ fontSize: '10px', color: GOLD }}>◇</span>}
+            value={promise.badge}
+            onSave={v => savePromise({ badge: v })}
+          />
+          <div className="grid grid-cols-2 gap-3">
+            <EditableField
+              label="Titre — ligne 1"
+              icon={<span style={{ fontSize: '10px', color: TEXT, fontWeight: 800 }}>T</span>}
+              value={promise.title1}
+              onSave={v => savePromise({ title1: v })}
+            />
+            <EditableField
+              label="Titre — ligne 2 (doré)"
+              icon={<span style={{ fontSize: '10px', color: GOLD, fontWeight: 800 }}>T</span>}
+              value={promise.title2}
+              onSave={v => savePromise({ title2: v })}
+            />
+          </div>
+          <EditableField
+            label="Description"
+            icon={<Pencil size={13} color={MUTED} />}
+            value={promise.description}
+            multiline
+            onSave={v => savePromise({ description: v })}
+          />
+
+          <p style={{ color: MUTED, fontSize: '10px', fontWeight: 700, fontFamily: FONT, letterSpacing: '0.5px', textTransform: 'uppercase', marginTop: '4px' }}>
+            Chiffres clés
+          </p>
+          <div className="grid grid-cols-2 gap-3">
+            <EditableField
+              label="Chiffre 1"
+              icon={<span style={{ fontSize: '10px', color: GOLD, fontWeight: 800 }}>1</span>}
+              value={promise.stat1Label}
+              onSave={v => savePromise({ stat1Label: v })}
+            />
+            <EditableField
+              label="Légende 1"
+              icon={<Pencil size={13} color={MUTED} />}
+              value={promise.stat1Sub}
+              onSave={v => savePromise({ stat1Sub: v })}
+            />
+            <EditableField
+              label="Chiffre 2"
+              icon={<span style={{ fontSize: '10px', color: GOLD, fontWeight: 800 }}>2</span>}
+              value={promise.stat2Label}
+              onSave={v => savePromise({ stat2Label: v })}
+            />
+            <EditableField
+              label="Légende 2"
+              icon={<Pencil size={13} color={MUTED} />}
+              value={promise.stat2Sub}
+              onSave={v => savePromise({ stat2Sub: v })}
+            />
+            <EditableField
+              label="Chiffre 3"
+              icon={<span style={{ fontSize: '10px', color: GOLD, fontWeight: 800 }}>3</span>}
+              value={promise.stat3Label}
+              onSave={v => savePromise({ stat3Label: v })}
+            />
+            <EditableField
+              label="Légende 3"
+              icon={<Pencil size={13} color={MUTED} />}
+              value={promise.stat3Sub}
+              onSave={v => savePromise({ stat3Sub: v })}
+            />
+          </div>
         </div>
       </div>
 
@@ -764,6 +930,58 @@ export default function AdminSettings() {
                   style={{
                     width: '18px', height: '18px', borderRadius: '50%',
                     background: '#fff', transform: settings?.hidePrices ? 'translateX(20px)' : 'translateX(0)',
+                    transition: 'transform 0.2s',
+                  }}
+                />
+              </button>
+            </div>
+          </div>
+
+          {/* Stock Display Toggle */}
+          <div className="rounded-xl p-4" style={{ background: BG, border: `1px solid ${BORDER}` }}>
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-2">
+                <span style={{ fontSize: '13px', color: GOLD }}>📦</span>
+                <div>
+                  <p style={{ color: TEXT, fontSize: '13px', fontWeight: 700, fontFamily: FONT, marginBottom: '2px' }}>
+                    Afficher le stock restant
+                  </p>
+                  <p style={{ color: MUTED, fontSize: '11px', fontFamily: FONT }}>
+                    Masquer les mentions « Plus que X en stock » côté client
+                  </p>
+                </div>
+              </div>
+              <button
+                onClick={async () => {
+                  const newValue = !settings?.hideStock;
+                  setSettings(prev => prev ? { ...prev, hideStock: newValue } : null);
+                  try {
+                    const res = await fetch(apiUrl('/api/admin/general-settings'), {
+                      method: 'PATCH',
+                      headers: { 'Content-Type': 'application/json' },
+                      credentials: 'include',
+                      body: JSON.stringify({ hideStock: newValue }),
+                    });
+                    if (!res.ok) throw new Error();
+                    toast(newValue ? 'Stock masqué' : 'Stock affiché');
+                  } catch {
+                    // Revert on error
+                    setSettings(prev => prev ? { ...prev, hideStock: !newValue } : null);
+                    toast.error('Erreur de sauvegarde');
+                  }
+                }}
+                style={{
+                  width: '44px', height: '24px', borderRadius: '12px',
+                  background: settings?.hideStock ? '#ef4444' : GOLD,
+                  border: 'none', cursor: 'pointer',
+                  display: 'flex', alignItems: 'center',
+                  padding: '2px', transition: 'background 0.2s',
+                }}
+              >
+                <div
+                  style={{
+                    width: '18px', height: '18px', borderRadius: '50%',
+                    background: '#fff', transform: settings?.hideStock ? 'translateX(20px)' : 'translateX(0)',
                     transition: 'transform 0.2s',
                   }}
                 />

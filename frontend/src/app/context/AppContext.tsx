@@ -86,6 +86,8 @@ interface AppContextType {
   colors: typeof LIGHT_COLORS;
   // Price Display
   hidePrices: boolean;
+  // Stock Display
+  hideStock: boolean;
 }
 
 const AppContext = createContext<AppContextType | null>(null);
@@ -120,6 +122,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   const [lastOrderId, setLastOrderId] = useState<string | null>(null);
   const [darkMode, setDarkMode] = useState<boolean>(() => loadFromStorage('mn_dark', false));
   const [hidePrices, setHidePrices] = useState<boolean>(() => loadFromStorage('mn_hide_prices', false));
+  const [hideStock, setHideStock] = useState<boolean>(() => loadFromStorage('mn_hide_stock', false));
   const [isGiftWrap, setIsGiftWrap] = useState(false);
   const [giftMessage, setGiftMessage] = useState('');
   const [allProducts, setAllProducts] = useState<Product[]>([]);
@@ -206,13 +209,17 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
   useEffect(() => { saveToStorage('mn_points', loyaltyPoints); }, [loyaltyPoints]);
   useEffect(() => { saveToStorage('mn_dark', darkMode); }, [darkMode]);
   useEffect(() => { saveToStorage('mn_hide_prices', hidePrices); }, [hidePrices]);
+  useEffect(() => { saveToStorage('mn_hide_stock', hideStock); }, [hideStock]);
 
   // Fetch general settings
   useEffect(() => {
     fetch(apiUrl('/api/settings/general'))
       .then(r => r.ok ? r.json() : null)
-      .then((d: { hidePrices: boolean } | null) => {
-        if (d) setHidePrices(d.hidePrices);
+      .then((d: { hidePrices: boolean; hideStock: boolean } | null) => {
+        if (d) {
+          setHidePrices(d.hidePrices);
+          setHideStock(d.hideStock);
+        }
       })
       .catch(() => {}); // Ignore errors, keep default
   }, []);
@@ -241,7 +248,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       const stock = product.stock ?? 99;
       const currentQty = existing ? existing.quantity : 0;
       if (currentQty + 1 > stock) {
-        toast('Stock insuffisant', { description: `Il reste ${stock} exemplaires en stock.`, duration: 2500 });
+        toast('Stock insuffisant', {
+          description: hideStock
+            ? 'Quantité maximale disponible atteinte.'
+            : `Il reste ${stock} exemplaires en stock.`,
+          duration: 2500,
+        });
         return prev;
       }
       if (existing) {
@@ -253,7 +265,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       }
       return [...prev, { product, quantity: 1, size }];
     });
-  }, []);
+  }, [hideStock]);
 
   const removeFromCart = useCallback((productId: string, size?: number) => {
     setCartItems(prev => prev.filter(item => !(item.product.id === productId && item.size === size)));
@@ -269,7 +281,12 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         if (item.product.id === productId && item.size === size) {
           const stock = item.product.stock ?? 99;
           if (quantity > stock) {
-            toast('Stock insuffisant', { description: `Il reste ${stock} exemplaires en stock.`, duration: 2500 });
+            toast('Stock insuffisant', {
+              description: hideStock
+                ? 'Quantité maximale disponible atteinte.'
+                : `Il reste ${stock} exemplaires en stock.`,
+              duration: 2500,
+            });
             return { ...item, quantity: stock };
           }
           return { ...item, quantity };
@@ -277,7 +294,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
         return item;
       })
     );
-  }, []);
+  }, [hideStock]);
 
   const clearCart = useCallback(() => { setCartItems([]); }, []);
 
@@ -364,6 +381,7 @@ export function AppProvider({ children }: { children: React.ReactNode }) {
       lastOrderId, setLastOrderId,
       darkMode, toggleDarkMode, colors,
       hidePrices,
+      hideStock,
       isProductsLoading,
     }}>
       {children}
